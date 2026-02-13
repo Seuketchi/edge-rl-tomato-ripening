@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edge-RL Digital Twin — System Pipeline</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <div class="logo">🍅</div>
+                <div>
+                    <h1>Edge-RL Digital Twin</h1>
+                    <p class="subtitle">Real DQN Model · Real Simulator · System Pipeline View</p>
+                </div>
+            </div>
+            <div class="header-right">
+                <span class="status-dot" id="simStatus"></span>
+                <div class="badge badge-sim" id="connBadge">DISCONNECTED</div>
+                <div class="badge badge-day" id="dayBadge">Day 0.0</div>
+            </div>
+        </header>
+
+        <!-- Pipeline Flow -->
+        <div class="pipeline">
+
+            <!-- 1. Environment (Tomato) -->
+            <div class="pipeline-node node-env">
+                <div class="node-label">🌱 Environment</div>
+                <div class="node-body">
+                    <canvas id="tomatoCanvas" width="180" height="200"></canvas>
+                    <div class="env-stats">
+                        <div class="stat">
+                            <span class="stat-icon">🌡️</span>
+                            <span class="stat-val" id="envTemp">20.0°C</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-icon">💧</span>
+                            <span class="stat-val" id="envHum">75%</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-icon">📅</span>
+                            <span class="stat-val" id="envDay">Day 0.0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="arrow" id="arrow1">
+                <div class="arrow-line"></div>
+                <div class="arrow-label">sensor<br>data</div>
+                <div class="arrow-head">▶</div>
+            </div>
+
+            <!-- 2. Camera / Vision -->
+            <div class="pipeline-node node-vision">
+                <div class="node-label">📷 Vision Model</div>
+                <div class="node-body">
+                    <div class="model-name">MobileNetV2 (0.35×)</div>
+                    <div class="model-detail">401K params · ~392KB INT8</div>
+                    <div class="classification" id="visionClass">
+                        <div class="class-stage" id="classStage">—</div>
+                        <div class="class-confidence">Ripeness: <span id="classRipeness">0.00</span></div>
+                    </div>
+                    <div class="vision-bars" id="visionBars">
+                        <div class="vbar"><span>Green</span>
+                            <div class="vbar-bg">
+                                <div class="vbar-fill" id="vb0"></div>
+                            </div>
+                        </div>
+                        <div class="vbar"><span>Breaker</span>
+                            <div class="vbar-bg">
+                                <div class="vbar-fill" id="vb1"></div>
+                            </div>
+                        </div>
+                        <div class="vbar"><span>Turning</span>
+                            <div class="vbar-bg">
+                                <div class="vbar-fill" id="vb2"></div>
+                            </div>
+                        </div>
+                        <div class="vbar"><span>Pink</span>
+                            <div class="vbar-bg">
+                                <div class="vbar-fill" id="vb3"></div>
+                            </div>
+                        </div>
+                        <div class="vbar"><span>Lt. Red</span>
+                            <div class="vbar-bg">
+                                <div class="vbar-fill" id="vb4"></div>
+                            </div>
+                        </div>
+                        <div class="vbar"><span>Red</span>
+                            <div class="vbar-bg">
+                                <div class="vbar-fill" id="vb5"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="arrow" id="arrow2">
+                <div class="arrow-line"></div>
+                <div class="arrow-label">observation<br>(9D vector)</div>
+                <div class="arrow-head">▶</div>
+            </div>
+
+            <!-- 3. RL Agent -->
+            <div class="pipeline-node node-rl">
+                <div class="node-label">🧠 RL Agent (DQN)</div>
+                <div class="node-body">
+                    <div class="model-name">Trained DQN Policy</div>
+                    <div class="model-detail" id="obsVector">obs: [0, 0, 0, 0, 0, 0, 0, 0, 0]</div>
+                    <div class="q-values" id="qValues">
+                        <div class="qval"><span>Maintain</span>
+                            <div class="qbar-bg">
+                                <div class="qbar-fill" id="q0"></div>
+                            </div><span class="qnum" id="qn0">—</span>
+                        </div>
+                        <div class="qval"><span>Heat 🔥</span>
+                            <div class="qbar-bg">
+                                <div class="qbar-fill" id="q1"></div>
+                            </div><span class="qnum" id="qn1">—</span>
+                        </div>
+                        <div class="qval"><span>Cool ❄️</span>
+                            <div class="qbar-bg">
+                                <div class="qbar-fill" id="q2"></div>
+                            </div><span class="qnum" id="qn2">—</span>
+                        </div>
+                        <div class="qval"><span>Harvest 🔪</span>
+                            <div class="qbar-bg">
+                                <div class="qbar-fill" id="q3"></div>
+                            </div><span class="qnum" id="qn3">—</span>
+                        </div>
+                    </div>
+                    <div class="chosen-action" id="chosenAction">
+                        <span class="action-arrow">→</span>
+                        <span id="actionText">Waiting...</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="arrow arrow-down" id="arrow3">
+                <div class="arrow-line"></div>
+                <div class="arrow-label">action</div>
+                <div class="arrow-head">▼</div>
+            </div>
+
+            <!-- 4. Action Applied -->
+            <div class="pipeline-node node-action">
+                <div class="node-label">⚡ Action Applied</div>
+                <div class="node-body">
+                    <div class="action-result" id="actionResult">
+                        <div class="action-big-icon" id="actionBigIcon">⏳</div>
+                        <div class="action-detail" id="actionDetail">No action yet</div>
+                    </div>
+                    <div class="reward-display">
+                        <span>Step reward:</span>
+                        <span class="reward-val" id="stepReward">—</span>
+                    </div>
+                    <div class="reward-display">
+                        <span>Total reward:</span>
+                        <span class="reward-val" id="totalReward">0.0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Feedback arrow back to environment -->
+        <div class="feedback-arrow">
+            <div class="feedback-line"></div>
+            <div class="feedback-label">environment updates → next state</div>
+        </div>
+
+        <!-- Bottom Row: Controls + Chart -->
+        <div class="bottom-row">
+            <!-- Controls -->
+            <div class="panel controls-panel">
+                <div class="panel-header">
+                    <h2>⚙️ Controls</h2>
+                </div>
+                <div class="controls-grid">
+                    <button id="btnStart" class="btn btn-primary" onclick="startSim()">▶ Start</button>
+                    <button id="btnPause" class="btn btn-secondary" onclick="pauseSim()" disabled>⏸ Pause</button>
+                    <button id="btnStep" class="btn btn-outline" onclick="stepSim()">⏭ Step</button>
+                    <button id="btnReset" class="btn btn-outline" onclick="resetSim()">↻ Reset</button>
+                </div>
+                <div class="speed-control">
+                    <label>Speed</label>
+                    <input type="range" id="speedSlider" min="1" max="20" value="3">
+                    <span id="speedLabel">3x</span>
+                </div>
+                <div class="mode-control">
+                    <label>Policy</label>
+                    <div class="toggle-group">
+                        <button class="toggle active" id="modeRl" onclick="setMode('rl')">DQN Agent</button>
+                        <button class="toggle" id="modeFixed" onclick="setMode('fixed')">Fixed Rule</button>
+                        <button class="toggle" id="modeManual" onclick="setMode('manual')">Manual</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chart -->
+            <div class="panel chart-panel">
+                <div class="panel-header">
+                    <h2>📈 Ripening Timeline</h2>
+                </div>
+                <canvas id="chartCanvas" width="800" height="160"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script src="simulator.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>

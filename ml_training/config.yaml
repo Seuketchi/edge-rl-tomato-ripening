@@ -1,0 +1,121 @@
+# Edge-RL Training Configuration
+# ================================
+
+project:
+  name: "edge-rl-tomato"
+  seed: 42
+  output_dir: "outputs"
+
+# --- Vision Model ---
+vision:
+  # Model
+  model_name: "mobilenetv2"       # mobilenetv2 | mobilenetv3_small | efficientnet_lite0
+  width_mult: 0.35                # MobileNetV2 width multiplier (0.35, 0.5, 1.0)
+  num_classes: 4                  # Number of ripeness classes
+  pretrained: true                # Use ImageNet pretrained weights
+  freeze_backbone: false          # Freeze backbone during training
+  input_size: 224                 # Input image size (224x224)
+
+  # Dataset
+  dataset:
+    root: "data/tomato"           # Root directory for dataset
+    # Kaggle dataset name (if using kagglehub)
+    kaggle_dataset: "enalis/tomatoes-dataset"
+    # Class names in order
+    class_names:
+      - "unripe"
+      - "ripe"
+      - "old"
+      - "damaged"
+    train_split: 0.70
+    val_split: 0.15
+    test_split: 0.15
+
+  # Augmentation
+  augmentation:
+    random_horizontal_flip: 0.5
+    random_vertical_flip: 0.0
+    random_rotation: 15           # degrees
+    color_jitter:
+      brightness: 0.3
+      contrast: 0.3
+      saturation: 0.3
+      hue: 0.1
+    random_resized_crop:
+      scale: [0.8, 1.0]
+      ratio: [0.9, 1.1]
+
+  # Training
+  training:
+    epochs: 80
+    batch_size: 32
+    learning_rate: 0.001
+    weight_decay: 0.0001
+    scheduler: "cosine"           # cosine | step | plateau
+    warmup_epochs: 5
+    early_stopping_patience: 15
+    label_smoothing: 0.1
+
+  # Export
+  export:
+    onnx_path: "outputs/models/tomato_classifier.onnx"
+    espdl_path: "outputs/models/tomato_classifier.espdl"
+    target_chip: "esp32s3"
+    quant_bits: 8
+    calibration_samples: 256
+
+# --- RL Policy ---
+rl:
+  # Environment
+  environment:
+    temp_range: [12.5, 25.0]      # Celsius
+    humidity_range: [60.0, 95.0]  # Percent
+    ripeness_stages: 6            # 0-5 (green to red)
+    episode_days: 7               # Max episode length in days
+    steps_per_day: 24             # Hourly decisions
+    target_day_range: [3, 7]      # Target harvest day range
+
+  # Simulator physics
+  simulator:
+    k1: 0.08                      # Ripening rate constant
+    t_base: 12.5                  # Base temperature (°C)
+    r_max: 5.0                    # Max ripeness stage
+    temp_noise_std: 0.5           # Temperature sensor noise
+    humidity_noise_std: 2.0       # Humidity sensor noise
+
+  # SAC Training
+  training:
+    algorithm: "SAC"
+    total_timesteps: 750000
+    learning_rate: 0.0003
+    buffer_size: 100000
+    batch_size: 256
+    gamma: 0.99
+    tau: 0.005
+    n_envs: 4                    # Parallel environments
+    eval_freq: 10000
+    eval_episodes: 20
+
+  # Policy architecture
+  policy:
+    teacher:
+      hidden_sizes: [256, 256]
+    student:
+      hidden_sizes: [64, 64]
+
+  # Distillation
+  distillation:
+    epochs: 100
+    batch_size: 512
+    learning_rate: 0.001
+    temperature: 3.0              # Softmax temperature
+    alpha_kl: 0.7                 # KL loss weight
+    alpha_mse: 0.3                # MSE loss weight
+    num_samples: 100000           # Rollout samples for distillation
+
+  # Export
+  export:
+    onnx_path: "outputs/models/rl_policy.onnx"
+    espdl_path: "outputs/models/rl_policy.espdl"
+    target_chip: "esp32s3"
+    quant_bits: 8
