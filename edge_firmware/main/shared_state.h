@@ -25,9 +25,11 @@ typedef struct {
     uint8_t action;            /* 0=maintain 1=heat(+ΔT) 2=cool(-ΔT) */
     float   action_confidence; /* max logit value (unnormalised) */
     uint32_t day_counter;      /* days since system start */
+    uint8_t ripeness_class;    /* vision classifier output class index */
 
     /* --- System flags --- */
     bool harvest_ready;        /* set when X <= ripe threshold (post-processing) */
+    bool harvest_triggered;    /* set when harvest action has been sent */
     bool camera_ready;         /* set after camera init succeeds */
     bool thermal_override;     /* set when hard-coded thermal guardrail fires */
 } edge_rl_state_t;

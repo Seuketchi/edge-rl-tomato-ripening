@@ -6,13 +6,13 @@ idf_component_register(
         "task_vision.c"
         "task_policy.c"
         "task_telemetry.c"
+        "edge_rl_policy.c"
+        "edge_rl_vision.c"
+        "edge_rl_dht22.c"
     INCLUDE_DIRS "."
     REQUIRES
         freertos
         esp_timer
-        esp_camera
         driver
-        edge_rl_vision
-        edge_rl_policy
-        edge_rl_sensors
+        nvs_flash
 )
