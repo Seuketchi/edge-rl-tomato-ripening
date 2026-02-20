@@ -3,23 +3,35 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.so
+*.egg-info/
 .env
-.venv
+.venv/
 env/
 venv/
+.python-version
 
-# LaTeX
+# LaTeX build artifacts
 *.aux
 *.log
 *.out
 *.toc
+*.bbl
+*.blg
 *.synctex.gz
 *.fls
 *.fdb_latexmk
 *.pdf
 
-# Project Specific
+# Model outputs & training runs
 outputs/
+
+# Editor & OS
 .DS_Store
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
+
+# Backup files
+*.bak

@@ -1,0 +1,52 @@
+\chapter{Introduction}
+\label{ch:introduction}
+
+\section{Background of the Study}
+The Philippines, despite being an agricultural nation, faces significant challenges in post-harvest management. High-value crops like tomatoes (\textit{Solanum lycopersicum}) suffer post-harvest losses estimated at 20--40\%, primarily due to poor handling, lack of cold chain infrastructure, and inadequate storage facilities \cite{fao2019}. Unlike grain crops, tomatoes are climacteric fruits that continue to respire and ripen after harvest, making temperature control critical for extending shelf life and ensuring market viability.
+
+Commercial operations mitigate these losses using industrial ripening chambers equipped with precise climate control systems. These facilities use ethylene gas injection and active refrigeration to synchronize ripening, ensuring uniform quality for supermarkets. However, the capital expenditure for such infrastructure ranges from \$10,000 to \$50,000 \cite{prasad2018}, effectively excluding the 5.5 million smallholder farming households in the Philippines who typically earn less than \$2,000 annually. As a result, small farmers are forced to sell their produce immediately after harvest at fluctuating farm-gate prices, often leading to income instability and food waste.
+
+\section{Statement of the Problem}
+Smallholder tomato farmers lack access to affordable, intelligent post-harvest decision-support systems. Existing solutions fall into two extremes: passive monitoring tools (IoT sensors) that provide data but no actionable control, and high-end industrial systems that are cost-prohibitive. Cloud-based Reinforcement Learning (RL) solutions have shown promise in controlled environment agriculture but require continuous internet connectivity, which is unreliable or absent in many rural Philippine farming communities. There is currently no standalone, low-cost system capable of autonomous, optimal ripening control at the edge.
+
+\section{Objectives of the Study}
+This study aims to develop "Edge-RL," a standalone autonomous ripening control system running on a low-cost microcontroller.
+
+\subsection{General Objective}
+To develop a low-cost, offline Reinforcement Learning system on an ESP32-S3 microcontroller that optimizes the post-harvest ripening of tomatoes by balancing quality preservation with energy efficiency.
+
+\subsection{Specific Objectives}
+\begin{enumerate}
+    \item To design a low-cost, standalone ripening chamber hardware (BOM $<$ \$50) integrating an ESP32-S3, camera, and relay-controlled heating element.
+    \item To implement a Deep Q-Network (DQN) policy trained in a physics-based digital twin that generalizes across tomato cultivars using domain randomization.
+    \item To validate the system's performance by distilling the policy to an edge-optimized model (INT8) and achieving a harvest timing error of less than 20\% in sim-to-real transfer.
+\end{enumerate}
+
+\section{Significance of the Study}
+
+This study addresses the critical issue of post-harvest loss, which accounts for up to 42\% of fruit and vegetable production globally according to the FAO \cite{fao2019}. In developing economies like the Philippines, these losses are exacerbated by the lack of cold chain infrastructure, often forcing smallholder farmers to sell produce at low prices or face total spoilage \cite{worldbank2020}.
+
+By developing a low-cost, intelligent ripening chamber, this research directly benefits:
+\begin{itemize}
+    \item \textbf{Smallholder Farmers:} Providing a tool to control the timing of produce sales, decoupling harvest time from market saturation.
+    \item \textbf{Agricultural Logistics:} Reducing spoilage during transport \cite{kader2005} through precise biological control.
+    \item \textbf{Technological Advancement:} Demonstrating the feasibility of deploying advanced Reinforcement Learning on \$2 microcontrollers (Edge AI) for complex biological systems \cite{warden2019tinyml}.
+\end{itemize}
+
+\section{Scope and Limitations}
+The scope of this thesis is defined by the following boundaries:
+
+\begin{itemize}
+    \item \textbf{Single-Fruit Focus:} The system acts on a single tomato unit within the chamber to isolate specific ripening kinetics. Batch effects (e.g., ethylene signaling between multiple fruits) are not modeled.
+    \item \textbf{Heater-Only Actuation:} The control mechanism is limited to a heating element (raising temperature above ambient) and passive ventilation (cooling to ambient). No active refrigeration (compressor/Peltier) is used, constraining the controllable temperature range to $T_{ambient} \le T_{chamber} \le 35^\circ$C.
+    \item \textbf{Target Crop:} The system is calibrated for Philippine tomato varieties, specifically focusing on the kinetics of "Diamante Max" and "Kamatis Tagalog".
+    \item \textbf{Deployment Environment:} The system is designed for offline operation; all inference and control logic execute locally on the ESP32-S3.
+\end{itemize}
+
+\section{Definition of Terms}
+\begin{description}
+    \item[Edge-RL] The proposed system architecture where Reinforcement Learning inference occurs directly on the edge device (microcontroller) rather than in the cloud.
+    \item[Climacteric Fruit] Fruits that exhibit a spike in respiration and ethylene production during ripening (e.g., tomato, banana, mango).
+    \item[Knowledge Distillation] A compression technique where a small "student" model learns to mimic the output of a larger "teacher" model.
+    \item[Continuous Chromatic Index ($X$)] A computed scalar value derived from the spectral reflectance of the fruit, representing its ripeness stage on a continuous scale from Green ($X=1$) to Red ($X=0$).
+\end{description}

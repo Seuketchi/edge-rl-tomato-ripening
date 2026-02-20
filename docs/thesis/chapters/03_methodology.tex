@@ -1,0 +1,142 @@
+\chapter{Methodology}
+\label{ch:methodology}
+
+\section{System Architecture}
+The Edge-RL system is designed as a closed-loop control system where a microcontroller (ESP32-S3) makes real-time decisions based on visual feedback from a camera and environmental data from sensors. The architecture consists of three main subsystems: the Perception Module, the Decision Engine (RL Policy), and the Actuation System.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[node distance=1.2cm, auto]
+        % Nodes
+        \node [sensor] (cam) {Camera (RGB)};
+        \node [sensor, right=0.5cm of cam] (dht) {DHT22 (T, H)};
+        \node [model, below=0.8cm of cam] (vision) {Vision Model\\(MobileNetV2)};
+        \node [model, below=0.8cm of dht] (policy) {RL Policy\\(Distilled MLP)};
+        \node [output, below=0.8cm of policy] (act) {Relay Control\\(Heater)};
+        \node [blockwide, below=1.0cm of vision, xshift=1.5cm] (env) {Ripening Chamber\\(Tomato)};
+
+        % Edges
+        \draw [arrow] (env.west) -- ++(-0.5,0) |- (cam.west);
+        \draw [arrow] (env.east) -- ++(0.5,0) |- (dht.east);
+        \draw [arrow] (cam) -- (vision);
+        \draw [arrow] (dht) -- (policy);
+        \draw [arrow] (vision) -- node[above, font=\scriptsize] {$X, \dot{X}$} (policy);
+        \draw [arrow] (policy) -- node[right, font=\scriptsize] {Action} (act);
+        \draw [arrow] (act) -- (env);
+        
+        % Background box
+        \begin{scope}[on background layer]
+            \node [layerbox, fit=(cam) (dht) (vision) (policy) (act), label=above:ESP32-S3 Firmware] {};
+        \end{scope}
+    \end{tikzpicture}
+    \caption{System Block Diagram. The ESP32-S3 handles both vision (Continuous Chromatic Index extraction) and control (RL inference). Sensors provide feedback from the physical chamber.}
+    \label{fig:arch}
+\end{figure}
+Classification accuracy is evaluated using per-class precision, recall, F1-score, and a confusion matrix. The target is $\geq$85\% top-1 accuracy on held-out test images, comparable to similar deep learning approaches for tomato ripeness classification \cite{zhang2021tomato, phan2023tomato}. Transfer learning effectiveness is quantified through an ablation study: (i)~training from scratch, (ii)~ImageNet pre-training only, and (iii)~pre-training + fine-tuning on real tomato images.
+
+\section{Digital Twin Construction}
+To overcome the data inefficiency of RL, we constructed a physics-based digital twin that models the ripening kinetics of the tomato.
+
+\subsection{Ripening Dynamics (ODE)}
+We model the ripening process using a first-order Ordinary Differential Equation (ODE) derived from Arrhenius kinetics. The Continuous Chromatic Index ($X \in [0, 1]$) represents the ripeness state, where $X=1$ is Green and $X=0$ is Red. The rate of change $\frac{dX}{dt}$ is governed by temperature $T$:
+
+    \noindent In an increasing frequency along the visible spectrum, the range proceeds from Red to Green (ROYG). Thus, $X$ maps directly to this spectral ordering: high $X$ corresponds to the green end and low $X$ to the red end.  X is derived from the mean RGB statistics of the tomato ROI by mapping the ROYG spectral shift to a peak-wavelength intensity ratio.  Unlike the 0--5 USDA staging \cite{usda1991} that discretizes a continuous process, $X$ preserves the full gradient of color change, enabling proportional control and fine-grained reward shaping.
+
+\begin{equation}
+    \frac{dX}{dt} = -k_1 (T - T_{base}) X
+    \label{eq:k1}
+\end{equation}
+
+where:
+\begin{itemize}
+    \item $k_1$: Cultivar-specific ripening rate constant (calibrated to $\approx 0.08$ day $^{-1} {^\circ}\text{C}^{-1}$ for Diamante Max).
+    \item $T_{base}$: Base temperature below which ripening effectively stops ($12.5^\circ$C).
+    \item $T$: Current chamber temperature ($^\circ$C).
+\end{itemize}
+
+\subsection{Thermal Model}
+The chamber temperature $T$ acts as the control variable. Since the system uses a heater-only configuration with passive cooling, the temperature dynamics are modeled as:
+\begin{equation}
+    T_{t+1} = T_t + \Delta u \cdot \text{Action} + k_{loss}(T_{amb} - T_t)
+\end{equation}
+where $k_{loss}$ represents thermal leakage to the ambient environment $T_{amb}$.
+
+\section{Reinforcement Learning Formulation}
+The problem is formulated as a Partially Observable Markov Decision Process (POMDP), derived as follows:
+
+\subsection{State Space}
+The observation vector $S_t$ consists of 9 features:
+\begin{itemize}
+    \item Current Ripeness ($X$) and Rate of Change ($\dot{X}$).
+    \item Environmental conditions: Chamber Temp ($T$), Humidity ($H$).
+    \item Time encoding: Days Elapsed ($t_e$) and Time Remaining ($t_{rem}$).
+    \item Color Statistics: RGB Mean and Mode (to handle noise).
+\end{itemize}
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[node distance=0.5cm, font=\scriptsize]
+        % Inputs
+        \node[block, fill=green!10, text width=1.5cm] (input1) {$X, \dot{X}, X_{\text{ref}}$};
+        \node[block, fill=blue!10, text width=1.5cm, below=0.2cm of input1] (input2) {$T, H$};
+        \node[block, fill=gray!10, text width=1.5cm, below=0.2cm of input2] (input3) {$t_e, t_{\text{rem}}$};
+        \node[block, fill=orange!10, text width=1.5cm, below=0.2cm of input3] (input4) {RGB Stats};
+
+        % State Vector
+        \node[blockwide, fill=gray!20, text width=1.0cm, right=1.0cm of input2, yshift=-0.5cm, minimum height=2.5cm, label=above:State Vector $S_t$] (state) {};
+        
+        % MLP
+        \node[model, right=1.0cm of state, text width=1.5cm, label=above:Student MLP] (mlp) {64$\times$64\\INT8};
+
+        % Output
+        \node[output, right=1.0cm of mlp, text width=1.5cm] (action) {Action $A_t$\\\{0, 1, 2\}};
+
+        % Arrows
+        \draw[arrow] (input1.east) -- (state.west |- input1.east);
+        \draw[arrow] (input2.east) -- (state.west |- input2.east);
+        \draw[arrow] (input3.east) -- (state.west |- input3.east);
+        \draw[arrow] (input4.east) -- (state.west |- input4.east);
+        \draw[arrow] (state) -- (mlp);
+        \draw[arrow] (mlp) -- (action);
+    \end{tikzpicture}
+    \caption{RL State-Space Mapping. Raw sensor data is aggregated into a feature vector $S_t$ which feeds the compressed Neural Network policy.}
+    \label{fig:state_space}
+\end{figure}
+
+\subsection{Action Space}
+The agent chooses from discrete actions $A = \{0, 1, 2\}$:
+\begin{enumerate}
+    \setcounter{enumi}{-1}
+    \item \textbf{Maintain:} No change in target temperature.
+    \item \textbf{Heat:} Increase target temperature by $1^\circ$C.
+    \item \textbf{Cool:} Decrease target temperature by $1^\circ$C (Passive ventilation).
+\end{enumerate}
+
+\subsection{Reward Function}
+The reward $R_t$ is a composite signal designed to guide the agent towards the target ripeness $X_{target}$ by the deadline $t_{deadline}$:
+\begin{equation}
+    R_t = r_{\text{progress}} + r_{\text{tracking}} + c_{\text{safety}} + b_{\text{harvest}}
+\end{equation}
+\begin{itemize}
+    \item $r_{\text{progress}}$: Reward for reducing $X$.
+    \item $r_{\text{tracking}}$: Penalty for deviating from the ideal reference curve derived from the ODE.
+    \item $c_{\text{safety}}$: Large negative penalty if $T > 35^\circ$C.
+    \item $b_{\text{harvest}}$: One-time bonus for successfully harvesting within the target quality window.
+\end{itemize}
+
+\section{Policy Distillation for Edge Deployment}
+Training a deep RL agent requires significant compute. We employ a "Teacher-Student" distillation pipeline to compress the model for the ESP32-S3.
+
+\begin{enumerate}
+    \item \textbf{Teacher Training:} A large Deep Q-Network (DQN) with [256, 256] hidden layers is trained in the digital twin for 100,000 steps.
+    \item \textbf{Data Generation:} The trained Teacher generates a dataset of optimal state-action pairs $\{(s_i, q_i)\}$.
+    \item \textbf{Student Distillation:} A compact Multi-Layer Perceptron (MLP) with [64, 64] hidden layers is trained to minimize the KL-divergence between its output distribution and the Teacher's Q-values.
+    \item \textbf{Quantization:} The Student model is quantized to int8 precision using the ESP-PPQ toolchain to enable hardware-accelerated inference.
+\end{enumerate}
+
+\section{Hardware Implementation}
+The physical system leverages the ESP32-S3 as the central controller.
+\subsection{Circuit Design}
+The power supply unit (PSU) delivers 12V to the heating element through an opto-isolated relay module. A buck converter steps down 12V to 5V for the microcontroller and sensors.
+\subsection{Enclosure}
+The chamber is constructed from 25mm extruded polystyrene (XPS) foam, ensuring thermal insulation. A 12V DC fan ensures air circulation to prevent hotspots.

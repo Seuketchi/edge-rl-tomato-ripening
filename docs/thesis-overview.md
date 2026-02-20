@@ -48,8 +48,8 @@ This thesis combines three things that have individually been explored but never
 > Does the RL policy trained entirely in a physics-based digital twin produce reasonable harvest timing recommendations when deployed with real sensor data?
 
 **Measurable Outcomes:**
-- RL policy recommends harvest within ±2 days of human expert judgment
-- Policy outperforms fixed-rule baselines (e.g., "harvest at stage 5")
+- RL policy recommends harvest timing within ±2 days of human expert judgment
+- Policy outperforms fixed-rule baselines (e.g., heat-only, maintain-only)
 - Sim-to-real gap in policy performance < 20%
 
 > [!IMPORTANT]

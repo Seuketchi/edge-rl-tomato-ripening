@@ -5,8 +5,8 @@ TomatoRipeningEnv (Discrete action space). Includes evaluation against
 fixed-rule baselines.
 
 Usage:
-    python -m ml_training.rl.train_sac --config ml_training/config.yaml
-    python -m ml_training.rl.train_sac --config ml_training/config.yaml --total-timesteps 1000 --smoke-test
+    python -m ml_training.rl.train_dqn --config ml_training/config.yaml
+    python -m ml_training.rl.train_dqn --config ml_training/config.yaml --total-timesteps 1000 --smoke-test
 """
 
 from __future__ import annotations
@@ -84,13 +84,14 @@ def evaluate_baseline(
 
         while not done:
             if policy_type == "fixed_stage5":
-                ripeness = obs[0]
-                action = 3 if ripeness >= 4.5 else 0
+                # In ROYG, X=0 is ripe. Heat to accelerate when X > 0.15
+                x = obs[0]
+                action = 1 if x > 0.3 else 0  # Heat or maintain
             elif policy_type == "fixed_day":
-                days_remaining = obs[7]
-                action = 3 if days_remaining <= 0 else 0
+                # Maintain temperature — let natural ripening happen
+                action = 0
             elif policy_type == "random":
-                action = rng.integers(0, 4)
+                action = rng.integers(0, 3)  # 3 actions: maintain/heat/cool
             else:
                 action = 0
 
@@ -128,7 +129,7 @@ def evaluate_trained_policy(
     rewards = []
     timing_errors = []
     harvest_qualities = []
-    action_counts = {0: 0, 1: 0, 2: 0, 3: 0}
+    action_counts = {0: 0, 1: 0, 2: 0}
 
     for i in range(n_episodes):
         env = TomatoRipeningEnv(config=config, seed=seed + i)
@@ -152,7 +153,7 @@ def evaluate_trained_policy(
             harvest_qualities.append(info["harvest_quality"])
 
     total_actions = sum(action_counts.values())
-    action_names = ["maintain", "heat", "cool", "harvest"]
+    action_names = ["maintain", "heat", "cool"]
 
     return {
         "policy": "DQN (trained)",
@@ -305,10 +306,10 @@ def main() -> None:
         batch_size=train_cfg.get("batch_size", 256),
         gamma=train_cfg.get("gamma", 0.99),
         tau=train_cfg.get("tau", 0.005),
-        exploration_fraction=0.5,
-        exploration_final_eps=0.02,
-        target_update_interval=2000,
-        learning_starts=5000,
+        exploration_fraction=0.7,
+        exploration_final_eps=0.05,
+        target_update_interval=5000,
+        learning_starts=10000,
         policy_kwargs={"net_arch": hidden_sizes},
         verbose=1,
         seed=seed,

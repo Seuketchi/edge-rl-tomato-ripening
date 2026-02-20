@@ -1,0 +1,24 @@
+\section{Conclusion and Recommendations}
+\label{sec:conclusion}
+
+\subsection{Conclusion}
+This study successfully demonstrated \textit{Edge-RL}, a novel framework for autonomous post-harvest ripening control deployed entirely on a standard ESP32-S3 microcontroller. By integrating INT8 quantization with policy distillation, we bridged the gap between complex reinforcement learning control and resource-constrained edge hardware.
+
+Addressing our research objectives:
+\begin{enumerate}
+    \item \textbf{Feasibility (RQ1):} We confirmed that a complex DQN policy ($\sim$270\,KB) can be compressed into a 35\,KB INT8 MLP with $<$1\,ms inference time and $>$98\% behavioral fidelity, proving that sequential decision-making is viable on sub-\$10 MCUs.
+    \item \textbf{Sim-to-Real Transfer (RQ2):} The physics-based digital twin with domain randomization effectively trained a robust policy that generalized to real-world sensor noise and cultivar variability without requiring physical retraining.
+    \item \textbf{Operational Viability (RQ3):} The system outperformed heuristic baselines in quality preservation (+16\% reward) and eliminated spoilage entirely, validating the economic potential for smallholder farmers.
+\end{enumerate}
+
+The system provides a cost-effective ($<$ \$33), offline-capable alternative to expensive commercial ripening facilities, democratizing access to precision agriculture technology.
+
+\subsection{Recommendations}
+Based on the findings and limitations of this study, we recommend the following for future development:
+
+\begin{enumerate}
+    \item \textbf{Hardware Refinement:} Given the emergent "heat-only" strategy, future iterations should remove the active cooling element to further reduce costs and power consumption, focusing solely on heating and ventilation.
+    \item \textbf{Continuous Learning:} Implement on-device fine-tuning to allow the agent to adapt to specific local conditions or new tomato varieties over time, rather than relying solely on the pre-trained static policy.
+    \item \textbf{Multi-Modal Sensing:} Integrate ethylene gas sensors to provide a direct biochemical indicator of ripening, potentially improving the state estimation accuracy beyond visual and environmental data alone.
+    \item \textbf{Field Deployment:} Conduct extended pilot testing in actual farm environments to evaluate long-term hardware durability and the system's impact on farmer income and post-harvest loss reduction at scale.
+\end{enumerate}

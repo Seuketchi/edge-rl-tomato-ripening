@@ -1,0 +1,96 @@
+\chapter{Results and Discussion}
+\label{ch:results}
+
+\section{Distillation \& Edge Feasibility}
+The teacher policy (DQN, 256$\times$256) is distilled into a student policy (MLP, 64$\times$64) via supervised learning. As shown in Table~\ref{tab:distill_results}, the student model achieves $>$95\% accuracy in mimicking the teacher's actions while reducing the model size by $\sim$30$\times$, making it deployable within the ESP32-S3's 512\,KB internal SRAM.
+
+\begin{table}[htbp]
+\caption{Policy Distillation Results}
+\label{tab:distill_results}
+\centering
+\begin{tabular}{@{}lllr@{}}
+\toprule
+\textbf{Metric} & \textbf{Teacher (DQN)} & \textbf{Student (Edge)} & \textbf{Change} \\
+\midrule
+Architecture & 256$\times$256 MLP & 64$\times$64 MLP & --- \\
+Model Size & $\sim$270 KB (FP32) & $\sim$5.3 KB (INT8) & $-$98\% \\
+Action Fidelity & 100\% & 97.8\% & $-2.2$\% \\
+Harvest Rate & 100\% & 100\% & 0\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+While the 97.8\% fidelity is high, this is consistent with policy distillation literature. The student model learns from the "cleaned" behavioral targets provided by the converged teacher, effectively smoothing out learning noise.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.48\textwidth]{distillation_curves.png}
+\caption{Distillation convergence. The rapid rise to $>$90\% accuracy within 10 epochs indicates that the teacher's policy has a clear, learnable structure.}
+\label{fig:distill_curve}
+\end{figure}
+
+\section{Sim-to-Real Policy Transfer}
+The DQN policy (mean reward $+4.05 \pm 1.48$) was evaluated in the physics-based digital twin with domain randomization. As shown in Fig.~\ref{fig:traj}, the agent learned to modulate temperature to drive the chromatic index toward the ripe threshold ($X \leq 0.15$) before the deadline.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.48\textwidth]{episode_1.png}
+\caption{Ripening trajectories controlled by the RL agent. The red line (Temperature) rises to accelerate ripening, driving the chromatic index $X$ (green line) toward the harvest threshold.}
+\label{fig:traj}
+\end{figure}
+
+Fig.~\ref{fig:envelope} demonstrates robustness. Despite randomized initial conditions and ripening rates, the agent consistently steers the system into the optimal harvest window.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.48\textwidth]{domain_randomization_envelope.png}
+\caption{Domain randomization envelope. The gray area shows 50+ randomized runs converging to the target.}
+\label{fig:envelope}
+\end{figure}
+
+\section{Vision-Based Reference Tracking}
+A key performance indicator is the agent's ability to track the "Ideal Ripening Curve" ($X_{\text{ref}}$) derived from the computer vision model's initial assessment. Fig.~\ref{fig:tracking} overlays the actual RL-controlled trajectory (Green) against the theoretical ideal trajectory (Blue Dashed).
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.48\textwidth]{tracking_performance.png}
+\caption{Tracking Performance: Actual ($X_{\text{actual}}$) vs. Ideal ($X_{\text{ref}}$). The RL agent closely tracks the reference, minimizing error (shaded region) while respecting thermal constraints.}
+\label{fig:tracking}
+\end{figure}
+
+The close alignment confirms the agent has learned the inverse dynamics of the ripening process, effectively serving as an intelligent tracking controller.
+
+\section{Comparative Performance Analysis}
+Table~\ref{tab:baseline_comparison} summarizes performance metrics relative to baseline heuristics.
+
+\begin{table}[htbp]
+\caption{Performance Comparison vs. Baselines}
+\label{tab:baseline_comparison}
+\centering
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Policy} & \textbf{Quality} & \textbf{Timing Err (d)} & \textbf{Total Reward} \\
+\midrule
+Random & 0.949 & 2.40 & $+0.44 \pm 2.75$ \\
+Fixed-Day & 0.952 & 2.46 & $+0.58 \pm 2.10$ \\
+Fixed-Stage5 & 0.953 & 3.92 & $-2.48 \pm 1.86$ \\
+\textbf{Edge-RL (Ours)} & \textbf{0.954} & \textbf{1.50} & $\mathbf{+4.05 \pm 1.48}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{itemize}
+    \item \textbf{Random}: Fails to coordinate actions, leading to drift.
+    \item \textbf{Fixed-Day}: Passive strategy that cannot accelerate ripening when behind schedule.
+    \item \textbf{Fixed-Stage5 (Heuristic)}: A threshold-based rule ($X > 0.3 \to \text{Heat}$) that tends to overshoot, frequently triggering safety guardrails ($T > 35^\circ$C).
+\end{itemize}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.48\textwidth]{comparison_trajectory.png}
+\caption{Behavioral Comparison: Edge-RL vs. Heuristic Baseline. The heuristic (dashed) oscillates and overheats, while the RL agent (solid) applies smooth, anticipatory heating.}
+\label{fig:comparison_traj}
+\end{figure}
+
+\section{Emergent Behavior}
+The agent exhibits emergent "pre-heating" behavior: it raises the temperature early in the episode to build ripening momentum ($dX/dt$) and then coasts as the target approaches, ensuring a soft landing at the desired ripeness state. This contrasts with the "bang-bang" control of simple thresholds.

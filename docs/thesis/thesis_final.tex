@@ -1,0 +1,80 @@
+% IEEE Conference-style Thesis
+% Compile: pdflatex thesis_final.tex && pdflatex thesis_final.tex
+\documentclass[conference]{IEEEtran}
+
+% ---- Packages ----
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{stfloats}    % Better float placement in two-column mode
+\usepackage{placeins}    % \FloatBarrier to anchor figures near text
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, backgrounds, calc, patterns, decorations.pathreplacing}
+\graphicspath{{images/}}
+
+\renewcommand{\arraystretch}{1.15}
+
+% TikZ styles
+\tikzset{
+    block/.style={rectangle, draw, fill=blue!8, text width=2.2cm, text centered, rounded corners, minimum height=0.8cm, font=\footnotesize},
+    blockwide/.style={rectangle, draw, fill=blue!8, text width=3.0cm, text centered, rounded corners, minimum height=0.8cm, font=\footnotesize},
+    sensor/.style={rectangle, draw, fill=green!15, text width=1.8cm, text centered, rounded corners, minimum height=0.7cm, font=\footnotesize},
+    model/.style={rectangle, draw, fill=orange!20, text width=2.4cm, text centered, rounded corners, minimum height=0.8cm, font=\footnotesize},
+    output/.style={rectangle, draw, fill=red!12, text width=2.2cm, text centered, rounded corners, minimum height=0.8cm, font=\footnotesize},
+    arrow/.style={-Stealth, thick},
+    dashedarrow/.style={-Stealth, thick, dashed},
+    layerbox/.style={draw, dashed, rounded corners, inner sep=6pt},
+}
+
+\begin{document}
+
+\title{Edge-RL: Autonomous Post-Harvest Ripening Control via Distilled Reinforcement Learning on the Edge}
+
+\author{
+\IEEEauthorblockN{Tristan O. Jadman}
+\IEEEauthorblockA{
+Department of Computer Engineering\\and Mechatronics \\
+\textit{Undergraduate Thesis}}
+\and
+\IEEEauthorblockN{Engr. Francis Jann Alagon}
+\IEEEauthorblockA{
+Department of Computer Engineering\\and Mechatronics \\
+\textit{Thesis Adviser}}
+}
+
+\maketitle
+
+% ==============================================================
+\begin{abstract}
+Post-harvest losses account for 20--40\% of tomato production in developing countries, driven by the absence of affordable, intelligent decision-support systems. Existing IoT solutions provide passive monitoring without autonomous action, while cloud-based reinforcement learning (RL) systems require expensive infrastructure and continuous connectivity. This thesis proposes \textit{Edge-RL}, a novel system that deploys a complete RL-based decision pipeline---from visual perception to autonomous ripening control---entirely on a \$33 ESP32-S3 microcontroller. The system extracts a Continuous Chromatic Index from RGB statistics via a MobileNetV2-based feature extractor and feeds a state vector to a distilled Deep Q-Network policy. By leveraging ESP-DL's hardware-optimized inference, Edge-RL achieves sub-2-second combined inference for spectral feature extraction and control decisions. Hardware-level safety guardrails enforce biological temperature constraints ($12.5$--$35^{\circ}$C) independent of the learned policy. This work presents the first demonstration of a complete sim-to-edge RL pipeline for agricultural post-harvest optimization.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Edge intelligence, reinforcement learning, post-harvest management, ESP32-S3, sim-to-real transfer, model compression, continuous chromatic index, digital twin
+\end{IEEEkeywords}
+
+% ==============================================================
+% Chapters
+% ==============================================================
+
+\input{chapters/01_introduction.tex}
+\input{chapters/02_rrl.tex}
+\input{chapters/03_methodology.tex}
+\input{chapters/04_results.tex}
+% \input{chapters/05_conclusion.tex}
+
+% ==============================================================
+\bibliographystyle{IEEEtran}
+\nocite{*}
+\bibliography{references} 
+
+\end{document}

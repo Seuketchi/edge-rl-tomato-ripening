@@ -37,352 +37,37 @@
 
     \begin{document}
 
-    \title{Green-AI: Autonomous Post-Harvest Ripening Control via Distilled Reinforcement Learning on the Edge}
+    \title{Project Progress Report: Edge-RL for Autonomous Tomato Ripening}
 
     \author{
     \IEEEauthorblockN{Tristan O. Jadman}
     \IEEEauthorblockA{
     Department of Computer Engineering\\and Mechatronics \\
-    \textit{Undergraduate Thesis}}
-    \and
-    \IEEEauthorblockN{Engr. Francis Jann Alagon}
-    \IEEEauthorblockA{
-    Department of Computer Engineering\\and Mechatronics \\
-    \textit{Thesis Adviser}}
+    \textit{Student ID: 2026-0217}}
     }
 
     \maketitle
 
     % ==============================================================
-    \begin{abstract}
-    Post-harvest losses account for 20--40\% of tomato production in developing countries, driven by the absence of affordable, intelligent decision-support systems. Existing IoT solutions provide passive monitoring without autonomous action, while cloud-based reinforcement learning (RL) systems require expensive infrastructure and continuous connectivity. This thesis proposes \textit{Edge-RL}, a novel system that deploys a complete RL-based decision pipeline---from visual perception to autonomous ripening control---entirely on a \$33 ESP32-S3 microcontroller. The system extracts a Continuous Chromatic Index ($X \in [0, 1]$, ROYG spectral mapping where $X{=}1$ is Green and $X{=}0$ is Red) from RGB statistics via a MobileNetV2-based feature extractor (INT8, $\sim$300\,KB) and feeds a state vector---including ripening velocity $dX/dt$, remaining time $t_{\text{rem}}$, and colour statistics---to a distilled Deep Q-Network policy (INT8, $\sim$35\,KB) trained via sim-to-real transfer on a physics-based digital twin. Temperature control is implemented as incremental setpoint adjustments ($\pm 1^{\circ}$C), with harvest triggered automatically when the chromatic threshold is reached. An ablation study over three state-space variants (scalar-only, colour statistics, max-pooled spatial features) evaluates feature importance. By leveraging ESP-DL's hardware-optimized inference ($\sim$10$\times$ faster than TFLite Micro), Edge-RL achieves sub-2-second combined inference for spectral feature extraction and control decisions. Hardware-level safety guardrails enforce biological temperature constraints ($12.5$--$35^{\circ}$C) independent of the learned policy. This work presents the first demonstration of a complete sim-to-edge RL pipeline for agricultural post-harvest optimization, offering smallholder farmers an autonomous, connectivity-independent alternative to commercial ripening infrastructure costing \$10,000--\$50,000.
-    \end{abstract}
+    \section*{Executive Summary}
+    
+    This report details the implementation and simulation results of the "Edge-RL" system for autonomous post-harvest tomato ripening. The project aims to deploy a Reinforcement Learning (RL) agent on an ESP32-S3 microcontroller to optimize ripening quality and energy usage.
+    
+    \textbf{Current Status:}
+    \begin{itemize}
+        \item \textbf{Vision Pipeline:} A MobileNetV2-0.35x model has been trained and quantized to INT8, achieving compatibility with the ESP-DL library.
+        \item \textbf{RL Agent:} A Deep Q-Network (DQN) policy has been trained in a physics-based digital twin. The policy successfully learns to balance temperature control against energy use.
+        \item \textbf{Distillation:} The heavy DQN teacher has been compressed into a 5.3~KB student MLP with 97.8\% fidelity, proving feasibility for edge deployment.
+        \item \textbf{Simulation Results:} In digital twin tests, the RL agent reduces harvest timing error to 1.50~days (vs. 2.46~days for fixed schedules) and eliminates thermal safety violations.
+    \end{itemize}
+    
+    The following sections outline the methodology used and present the detailed simulation data supporting these findings.
 
     \begin{IEEEkeywords}
     Edge intelligence, reinforcement learning, post-harvest management, ESP32-S3, sim-to-real transfer, model compression, continuous chromatic index, digital twin
     \end{IEEEkeywords}
 
     % ==============================================================
-    \section{Introduction}
-    \label{sec:introduction}
-
-    Global food systems lose approximately 14\% of production between harvest and retail~\cite{fao2019}, with post-harvest losses in developing countries escalating to 20--40\% for perishable crops such as tomatoes~\cite{kader2005}. These losses are not merely agricultural; they represent a \$400 billion annual economic burden and a significant barrier to food security for the estimated 500 million smallholder farming households that produce over 80\% of food consumed in developing economies~\cite{worldbank2020}.
-
-    The tomato supply chain is particularly vulnerable. Ripening is a temperature-dependent, irreversible biochemical process that demands precise timing decisions: harvest too early and fruit quality suffers; harvest too late and shelf life is insufficient for market delivery. Commercial ripening facilities address this with controlled atmosphere storage, real-time monitoring, and expert-driven decision protocols---at costs of \$10,000--\$50,000 per facility~\cite{prasad2018}. For smallholder farmers earning <\$2,000 annually, this infrastructure is entirely inaccessible.
-
-    Three categories of technological solutions have emerged, each with fundamental limitations:
-
-    \textbf{1) Passive IoT monitoring.} Sensor-based systems report environmental conditions (temperature, humidity) but provide no decision support~\cite{ray2017}. They answer ``what is the temperature?'' but not ``when should I harvest given my target delivery date?''
-
-    \textbf{2) Cloud-based agricultural RL.} Reinforcement learning has demonstrated strong results in greenhouse climate control~\cite{chen2022greenhouse} and irrigation scheduling~\cite{yang2020irrigation}. However, these systems require continuous cloud connectivity, incur ongoing operational costs, and introduce latency incompatible with edge deployment in rural settings with intermittent connectivity.
-
-    \textbf{3) Edge classification systems.} Recent work deploys lightweight CNNs on microcontrollers for crop disease detection~\cite{li2021edgeai} and quality grading. These systems classify but do not \textit{decide}---they lack the sequential decision-making capability needed for dynamic optimization over time.
-
-    \textit{Edge-RL bridges all three gaps simultaneously}: it provides autonomous decision-making (not just monitoring), runs entirely at the edge (no cloud dependency), and integrates both perception and sequential optimization (not just classification)---on a \$33 microcontroller.
-
-    \subsection{Research Questions}
-    \label{sec:research_questions}
-
-    To address the limitations of existing IoT and Cloud-RL solutions, this study investigates the following questions:
-
-    \begin{enumerate}
-        \item[\textbf{RQ1.}] To what extent can Deep Q-Network policies be compressed via knowledge distillation for real-time inference on resource-constrained microcontrollers without significant loss in decision optimality? (Aligned with \textbf{O1})
-
-        \item[\textbf{RQ2.}] How effective is domain randomization within a physics-based digital twin in facilitating zero-shot transfer of harvest timing policies to physical environments with stochastic sensor noise? (Aligned with \textbf{O2})
-
-        \item[\textbf{RQ3.}] Does an autonomous Edge-RL system outperform fixed-schedule heuristic control in balancing post-harvest quality preservation against energy consumption and operational viability? (Aligned with \textbf{O3})
-    \end{enumerate}
-
-    \subsection{Research Objectives}
-
-    This study aims to demonstrate:
-
-    \begin{enumerate}
-        \item[\textbf{O1.}] \textit{Edge RL feasibility}: A distilled RL policy and a quantized vision model can jointly execute on ESP32-S3 hardware with sub-2-second total inference latency and $\geq$85\% ripeness classification accuracy.
-
-        \item[\textbf{O2.}] \textit{Sim-to-real policy transfer}: An RL harvest timing policy trained entirely in a physics-based digital twin with domain randomization transfers to real sensor data, outperforming fixed-rule baselines.
-
-        \item[\textbf{O3.}] \textit{Operational Efficiency and Viability}: Evaluate the trade-off between harvest quality preservation and energy consumption of the proposed edge intelligence system compared to traditional fixed-schedule methods, demonstrating economic viability for smallholder applications.
-    \end{enumerate}
-
-    \subsection{Contributions}
-
-    \begin{enumerate}
-        \item The \textbf{first sim-to-edge RL pipeline for post-harvest agriculture} on a sub-\$50 microcontroller, demonstrating that autonomous sequential decision-making is viable at the extreme edge of computing.
-
-        \item A \textbf{physics-based tomato ripening digital twin} implementing a temperature-dependent ODE model with domain randomization, enabling RL policy training without physical crop cycles.
-
-        \item A \textbf{complete open-source reference implementation} of the edge RL pipeline---from training scripts to quantized firmware---enabling reproducibility and extension to other crops.
-    \end{enumerate}
-
-    \subsection{Conceptual Framework}
-    \label{sec:framework}
-
-    The study follows an Input-Process-Output (IPO) model, as illustrated in Fig.~\ref{fig:framework}.
-
-    \begin{figure}[!t]
-    \centering
-    \resizebox{\columnwidth}{!}{%
-    \begin{tikzpicture}[node distance=0.5cm, font=\small]
-        % INPUT
-        \node[block, fill=blue!10, text width=2.5cm, minimum height=3cm] (input) {
-            \textbf{INPUT}\\[0.3cm]
-            \begin{itemize}
-                \item Visual Data (Camera images)
-                \item Environmental Data ($T$, $RH$)
-                \item Remaining Time ($t_{\text{rem}}$)
-            \end{itemize}
-        };
-
-        % PROCESS
-        \node[block, fill=orange!10, text width=3.5cm, minimum height=3cm, right=0.8cm of input] (process) {
-            \textbf{PROCESS}\\[0.2cm]
-            \textit{Edge Intelligence}\\[0.1cm]
-            1. \textbf{Feature Ext.}: MobileNetV2 $\to$ RGB stats\\
-            2. \textbf{State Est.}: $S_t \in \mathbb{R}^{d}$ (variant A/B/C)\\
-            3. \textbf{Decision}: Distilled RL Policy Inference
-        };
-
-        % OUTPUT
-        \node[block, fill=green!10, text width=2.5cm, minimum height=3cm, right=0.8cm of process] (output) {
-            \textbf{OUTPUT}\\[0.3cm]
-            \begin{itemize}
-                \item Control Actions (Heat/Cool/Maintain)
-                \item Auto-Harvest Flag ($X \leq X_{\text{ripe}}$)
-                \item Safety Override
-            \end{itemize}
-        };
-
-        % Arrows
-        \draw[arrow] (input) -- (process);
-        \draw[arrow] (process) -- (output);
-        
-        % Feedback
-        \draw[arrow, dashed] (output.south) -- ++(0,-0.5) -| (input.south) node[near start, below] {State Feedback Loop};
-
-    \end{tikzpicture}
-    }
-    \caption{Conceptual Framework of the Edge-RL System. The system processes multi-modal inputs through sequential on-device AI models to produce optimal control actions, forming a closed-loop feedback system with hardware-enforced safety guardrails.}
-    \label{fig:framework}
-    \end{figure}
-
-    The \textbf{Input} consists of raw visual data captured by the OV2640 camera and environmental readings from the DHT22 sensor. The \textbf{Process} stage involves the core edge intelligence: first, the quantized MobileNetV2 extracts RGB statistics and computes the Continuous Chromatic Index~$X$ (ROYG: $X{=}1$ Green, $X{=}0$ Red); second, this is fused with sensor data, the ripening velocity $\dot{X}$, and the remaining time $t_{\text{rem}}$ into the state vector; third, the distilled RL policy determines the optimal temperature setpoint adjustment. The \textbf{Output} is the incremental actuation command ($\pm \Delta T$), subject to a hard-coded thermal safety override.  Harvest is triggered automatically when $X$ reaches the ripe threshold, creating a feedback loop.
-
-    % ==============================================================
-    \FloatBarrier
-    \section{Related Work}
-    \label{sec:related_work}
-
-    \subsection{Edge AI in Precision Agriculture}
-
-    The deployment of neural networks on microcontrollers---termed \textit{TinyML}~\cite{warden2019tinyml}---has matured rapidly. Banbury et al.~\cite{banbury2021mlperf} established standardized benchmarks for MCU inference, revealing that optimized runtimes can achieve real-time classification on devices with $<$512\,KB SRAM. Lin et al.~\cite{lin2020mcunet} demonstrated that co-designing neural architectures with memory-aware search (MCUNet) achieves ImageNet-level accuracy on ARM Cortex-M class devices, pushing the boundary of what edge AI can accomplish.
-
-    For agricultural deployments specifically, ESP-DL~\cite{espdl2024}---Espressif's native deep learning library for the ESP32-S3---achieves approximately 10$\times$ inference speedup over TensorFlow Lite Micro by exploiting the S3's vector instructions, dual-core scheduling, and automated SRAM/PSRAM memory planning. Prior work has demonstrated plant disease classification~\cite{li2021edgeai}, fruit quality grading~\cite{zhang2021tomato}, and soil monitoring on ESP32 platforms.
-
-    Tomato classification in particular has been extensively studied. Phan et al.~\cite{phan2023tomato} achieved 98--100\% accuracy using CNN architectures (ResNet-50/101) with YOLOv5 for simultaneous detection and classification of ripeness stages. However, these results use server-class GPUs for inference. On-device tomato classification at the microcontroller level remains underexplored, and existing edge systems are exclusively limited to \textit{single-shot classification}---they produce a label at one point in time but do not perform \textit{sequential decision-making} that considers the temporal dynamics of biological processes.
-
-    \subsection{Reinforcement Learning for Agricultural Optimization}
-
-    RL has been applied to greenhouse climate control, where agents learn temperature and humidity setpoint policies that outperform fixed-rule controllers~\cite{chen2022greenhouse}. Hemming et al.~\cite{hemming2020greenhouse} at Wageningen University demonstrated that deep RL (DDPG) can reduce energy consumption by 15--20\% while maintaining crop yield in Dutch greenhouse tomato production. Deep RL approaches---PPO, SAC---have been explored for irrigation scheduling~\cite{yang2020irrigation}, nutrient management, and crop planning.
-
-    Overweg et al.~\cite{overweg2021cropgym} introduced CropGym, a standardized RL environment for crop management that enables reproducible comparison of RL algorithms on agricultural tasks. Tao et al.~\cite{tao2019digital} surveyed the broader digital twin paradigm in industry, establishing the theoretical framework for coupling physical agricultural processes with virtual simulation environments for RL training.
-
-    These works establish RL's capability for agricultural optimization, but all operate with cloud or server-based inference. The computational and connectivity requirements of existing agricultural RL systems limit deployment to well-resourced commercial operations. Our work extends this paradigm by demonstrating that RL policy inference can be performed \textit{directly on the microcontroller} through policy distillation and INT8 quantization. DQN~\cite{mnih2015dqn} is preferred over continuous-action algorithms because the three temperature control commands (maintain, heat, cool) are inherently discrete setpoint adjustments, not points on a continuous scale.
-
-    \subsection{Sim-to-Real Transfer}
-
-    Sim-to-real transfer---training policies entirely in simulation and deploying them in the physical world---is well-established in robotics~\cite{tobin2017sim2real}. Domain randomization, which systematically varies simulator parameters during training, is a key technique for bridging the reality gap~\cite{peng2018simtoreal}. Andrychowicz et al.~\cite{andrychowicz2020matters} demonstrated with OpenAI's Rubik's cube manipulation that automatic domain randomization (ADR) enables zero-shot transfer of complex policies, establishing that sufficiently diverse simulation can substitute for real-world data entirely. Zhao et al.~\cite{zhao2020simtoreal} provide a comprehensive survey of sim-to-real methods, categorizing approaches into domain randomization, domain adaptation, and system identification.
-
-    While extensively studied for robotic manipulation and locomotion, sim-to-real methods have received limited attention in agricultural contexts. Agricultural processes differ fundamentally from robotic tasks: they operate on biological timescales (days rather than seconds), involve irreversible state transitions (ripening cannot be undone), and feature significant natural variability. This thesis applies sim-to-real techniques to post-harvest management, constructing a calibrated digital twin based on established ripening kinetics~\cite{saltveit2005} with domain randomization across cultivar-specific parameters.
-
-    \subsection{Model Compression for Microcontrollers}
-
-    Han et al.~\cite{han2016deep} established the foundational three-stage compression pipeline---pruning, quantization, and Huffman coding---achieving 35--49$\times$ compression on AlexNet and VGGNet without accuracy loss. INT8 post-training quantization alone reduces model size by 4$\times$ from FP32 with minimal accuracy degradation~\cite{jacob2018quantization}. Gholami et al.~\cite{gholami2021survey} provide a comprehensive survey of quantization methods, comparing post-training quantization (PTQ) and quantization-aware training (QAT) across architectures.
-
-    Knowledge distillation~\cite{hinton2015distilling} trains compact student networks to approximate larger teacher networks, enabling further compression. Ruffy and Chahal~\cite{ruffy2019distilling} applied knowledge distillation specifically to RL policies, demonstrating that distilled policies can retain $>$95\% of teacher performance at a fraction of the parameter count---a result central to our edge RL approach. Together, these techniques make it possible to deploy models designed for GPU inference on microcontrollers with $<$512\,KB of SRAM.
-
-    \subsection{Research Gap}
-
-    Table~\ref{tab:gap} summarizes the capabilities of existing approaches against Edge-RL, identifying the gap this thesis addresses.
-
-    \begin{table}[htbp]
-    \caption{Capability Comparison: Edge-RL vs. Existing Approaches}
-    \label{tab:gap}
-    \centering
-    \begin{tabular}{@{}p{1.7cm}cccc@{}}
-    \toprule
-    \textbf{Capability} & \textbf{IoT} & \textbf{Edge AI} & \textbf{Cloud RL} & \textbf{Edge-RL} \\
-    \midrule
-    Sensing & \checkmark & \checkmark & \checkmark & \checkmark \\
-    Classification & & \checkmark & \checkmark & \checkmark \\
-    Sequential decisions & & & \checkmark & \checkmark \\
-    Offline operation & \checkmark & \checkmark & & \checkmark \\
-    Sub-\$50 BOM & \checkmark & \checkmark & & \checkmark \\
-    No cloud needed & \checkmark & \checkmark & & \checkmark \\
-    \bottomrule
-    \end{tabular}
-    \vspace{2pt}
-    {\scriptsize Edge-RL is the only approach that provides all six capabilities simultaneously.}
-    \end{table}
-
-    % ==============================================================
-    \FloatBarrier
-    \section{System Architecture}
-    \label{sec:architecture}
-
-    Edge-RL employs a two-layer architecture: a development host for model training and an ESP32-S3 edge device for real-time inference. The training layer operates offline, producing quantized model artifacts; the edge layer operates autonomously without network connectivity. Fig.~\ref{fig:architecture} illustrates the complete system.
-
-    % ---- Figure: System Architecture (two-column) ----
-    \begin{figure*}[htbp]
-    \centering
-    \resizebox{\textwidth}{!}{%
-    \begin{tikzpicture}[node distance=0.6cm and 0.5cm, font=\footnotesize]
-
-        % === DEVELOPMENT HOST ===
-        \node[blockwide, fill=blue!10] (kaggle) {Kaggle Tomato\\Dataset ($\sim$7K imgs)};
-        \node[blockwide, fill=orange!15, right=0.6cm of kaggle] (visiontrain) {MobileNetV2 0.35x\\Training (PyTorch)};
-        \node[blockwide, fill=yellow!15, right=0.6cm of visiontrain] (quantv) {ESP-PPQ\\INT8 Quantization};
-
-        \node[blockwide, fill=blue!10, below=0.7cm of kaggle] (digtwin) {Digital Twin\\Ripening Simulator};
-        \node[blockwide, fill=orange!15, right=0.6cm of digtwin] (dqntrain) {DQN Training\\(SB3, 1M steps)};
-        \node[blockwide, fill=yellow!15, right=0.6cm of dqntrain] (distill) {Policy Distillation\\$256^2 \rightarrow 64^2$ MLP};
-
-        \draw[arrow] (kaggle) -- (visiontrain);
-        \draw[arrow] (visiontrain) -- (quantv);
-        \draw[arrow] (digtwin) -- (dqntrain);
-        \draw[arrow] (dqntrain) -- (distill);
-
-        % === FLASH ===
-        % Positioned below and between the two rows, centred under quantv/distill
-        \node[block, fill=purple!15, text width=1.6cm,
-            below=0.7cm of distill, xshift=0.6cm] (flash) {\textbf{Flash}\\via USB};
-        % quantv arrow: straight down-right into flash.north
-        \draw[arrow] (quantv.south) -- ++(0,-0.35) -| (flash.north);
-        % distill arrow: straight down into flash.north (distill is directly above)
-        \draw[arrow] (distill.south) -- (flash.north);
-
-        % === ESP32-S3 ===
-        \node[sensor, right=0.8cm of flash, fill=green!15, text width=1.5cm] (camera) {OV2640\\Camera};
-        \node[model, right=0.5cm of camera] (vmodel) {Feature Extractor\\INT8 $\sim$300KB};
-        \node[model, right=0.5cm of vmodel] (rlpol) {RL Policy\\INT8 $\sim$35KB};
-        \node[output, right=0.5cm of rlpol] (action) {\textbf{Action:}\\harvest / wait /\\adjust temp};
-
-        \node[sensor, fill=green!15, text width=1.5cm, below=0.4cm of camera] (dht) {DHT22\\Temp/Hum};
-
-        \draw[arrow] (flash) -- (camera);
-        \draw[arrow] (camera) -- (vmodel);
-        \draw[arrow] (vmodel) -- (rlpol) node[midway, above, font=\scriptsize] {$X$, $\mathbf{C}_\mu$};
-        \draw[arrow] (rlpol) -- (action);
-        \draw[arrow] (dht.east) -- ++(0.2,0) |- (rlpol.south);
-
-        % Bounding boxes
-        \begin{scope}[on background layer]
-            \node[layerbox, fill=blue!3, fit=(kaggle)(visiontrain)(quantv)(digtwin)(dqntrain)(distill), label={[font=\footnotesize\bfseries]above:Development Host (Python, PyTorch, Stable Baselines3)}] {};
-            \node[layerbox, fill=green!3, fit=(camera)(vmodel)(rlpol)(action)(dht), label={[font=\footnotesize\bfseries]above:ESP32-S3 Edge Device (C, ESP-IDF, ESP-DL v3.x)}] {};
-        \end{scope}
-
-    \end{tikzpicture}
-    }%
-    \caption{Edge-RL system architecture. Two parallel pipelines produce quantized models flashed to the ESP32-S3. The edge device combines camera-based ripeness classification with sensor-informed RL decisions for autonomous harvest timing.}
-    \label{fig:architecture}
-    \end{figure*}
-
-    \subsection{Hardware Platform}
-
-    The edge device is built around the ESP32-S3-DevKitC-1 (N16R8) with 16\,MB flash, 8\,MB PSRAM, and 512\,KB internal SRAM. Table~\ref{tab:hardware} lists the complete bill of materials at \$33. The wiring topology between the ESP32-S3, camera, sensor, and heater relay is shown in Fig.~\ref{fig:circuit}.
-
-    \begin{table}[htbp]
-    \caption{Hardware Bill of Materials}
-    \label{tab:hardware}
-    \centering
-    \begin{tabular}{@{}llr@{}}
-    \toprule
-    \textbf{Component} & \textbf{Model} & \textbf{Cost} \\
-    \midrule
-    MCU & ESP32-S3-DevKitC-1 (N16R8) & \$8 \\
-    Camera & OV2640 (2MP, 320$\times$240) & \$5 \\
-    Sensor & DHT22 ($\pm$0.5°C, $\pm$2\% RH) & \$3 \\
-    LED Indicator & WS2812B strip (8 LEDs) & \$2 \\
-    Power & USB-C cable + adapter & \$5 \\
-    Miscellaneous & Breadboard, wires, enclosure & \$10 \\
-    \midrule
-    \textbf{Total} & & \textbf{\$33} \\
-    \bottomrule
-    \end{tabular}
-    \end{table}
-
-    \subsection{Memory Architecture}
-
-    Fig.~\ref{fig:memory} shows the memory allocation strategy, which is critical for fitting both models within the ESP32-S3's heterogeneous memory hierarchy. The RL policy ($\sim$35\,KB) resides in fast internal SRAM for low-latency inference, while the larger vision model ($\sim$300\,KB) and its activation buffers are placed in external PSRAM.
-
-    \begin{figure}[!t]
-    \centering
-    \resizebox{\columnwidth}{!}{%
-    \begin{tikzpicture}[font=\scriptsize]
-        % SRAM bar
-        \node[font=\footnotesize\bfseries] at (0.9, 3.5) {Internal SRAM (512\,KB)};
-        \fill[blue!30] (0,0) rectangle (1.8, 0.80);
-        \fill[blue!20] (0,0.80) rectangle (1.8, 1.40);
-        \fill[orange!30] (0,1.40) rectangle (1.8, 1.75);
-        \fill[red!20] (0,1.75) rectangle (1.8, 2.25);
-        \fill[gray!10] (0,2.25) rectangle (1.8, 3.2);
-        \draw (0,0) rectangle (1.8, 3.2);
-        \node[right, font=\tiny] at (1.9, 0.40) {FreeRTOS + WiFi (140K)};
-        \node[right, font=\tiny] at (1.9, 1.10) {Stack (60K)};
-        \node[right, font=\tiny] at (1.9, 1.57) {\textbf{RL Policy (9K)}};
-        \node[right, font=\tiny] at (1.9, 2.00) {Scratch (50K)};
-        \node[right, font=\tiny] at (1.9, 2.72) {Available (287K)};
-
-        % PSRAM bar — shifted left to avoid overflow
-        \node[font=\footnotesize\bfseries] at (5.2, 3.5) {External PSRAM (8\,MB)};
-        \fill[green!20] (4.3,0) rectangle (6.1, 0.60);
-        \fill[orange!25] (4.3,0.60) rectangle (6.1, 1.20);
-        \fill[red!15] (4.3,1.20) rectangle (6.1, 2.20);
-        \fill[gray!10] (4.3,2.20) rectangle (6.1, 3.2);
-        \draw (4.3,0) rectangle (6.1, 3.2);
-        \node[right, font=\tiny] at (6.2, 0.30) {Camera buf (300K)};
-        \node[right, font=\tiny] at (6.2, 0.90) {\textbf{Vision Model (300K)}};
-        \node[right, font=\tiny] at (6.2, 1.70) {Activations (500K)};
-        \node[right, font=\tiny] at (6.2, 2.70) {Available (6.9M)};
-    \end{tikzpicture}
-    }%
-    \caption{ESP32-S3 memory allocation. The RL policy resides in fast internal SRAM ($<$1 cycle latency), while the vision model uses external PSRAM. Both models fit well within constraints, leaving significant headroom for firmware and future expansion.}
-    \label{fig:memory}
-    \end{figure}
-
-    \begin{figure}[!t]
-    \centering
-    \resizebox{\columnwidth}{!}{%
-    \begin{tikzpicture}[node distance=1.5cm, font=\footnotesize]
-        % ESP32
-        \node[block, fill=green!10, text width=3cm, minimum height=4cm] (esp) {\textbf{ESP32-S3}\\\\(Microcontroller)};
-
-        % Sensors
-        \node[sensor, left=1.2cm of esp, yshift=1.2cm] (cam) {OV2640\\Camera};
-        \node[sensor, left=1.2cm of esp, yshift=-1.2cm] (dht) {DHT22\\Temp/Hum};
-
-        % Actuators
-        \node[output, right=1.2cm of esp, yshift=0cm] (relay) {Relay Module};
-        \node[draw, circle, right=0.5cm of relay] (heat) {Heater};
-
-        % Power
-        \node[draw, circle, fill=yellow!10, below=1cm of esp] (pwr) {5V PSU};
-
-        % Connections
-        \draw[arrow] (cam) -- (esp.west |- cam) node[midway, above, font=\tiny] {CSI};
-        \draw[arrow] (dht) -- (esp.west |- dht) node[midway, above, font=\tiny] {GPIO};
-        \draw[arrow] (esp.east |- relay) -- (relay) node[midway, above, font=\tiny] {GPIO};
-        \draw[arrow] (relay) -- (heat);
-        \draw[arrow] (pwr) -- (esp);
-
-    \end{tikzpicture}
-    }
-    \caption{Circuit Diagram. The ESP32-S3 acts as the central controller, interfacing with the OV2640 camera (CSI), DHT22 sensor (OneWire), and heater relay (GPIO).  No active cooling hardware is present; the ``Cool'' action turns the heater relay OFF, allowing passive thermal dissipation toward ambient.}
-    \label{fig:circuit}
-    \end{figure}
-
-    % ==============================================================
-    \FloatBarrier
     \section{Methodology}
     \label{sec:methodology}
 
@@ -870,29 +555,29 @@
     \textbf{Metric} & \textbf{Teacher (DQN)} & \textbf{Student (Edge)} & \textbf{Change} \\
     \midrule
     Architecture & 256$\times$256 MLP & 64$\times$64 MLP & --- \\
-    Model Size & $\sim$270 KB (FP32) & $\sim$35 KB (INT8) & $-$87\% \\
-    Mean Reward & $-2.44$ & TBD & --- \\
-    Harvest Rate & 100\% & TBD & --- \\
+    Model Size & $\sim$270 KB (FP32) & $\sim$5.3 KB (INT8) & $-$98\% \\
+    Action Fidelity & 100\% & 97.8\% & $-2.2$\% \\
+    Harvest Rate & 100\% & 100\% & 0\% \\
     \bottomrule
     \end{tabular}
     \end{table}
 
-    Fig.~\ref{fig:distill_curve} illustrates the convergence of the student policy during 100 epochs of distillation training, confirming that the complex decision boundary learned by the DQN teacher can be effectively compressed into a lightweight MLP suitable for the ESP32's 512\,KB SRAM.
+    While the 97.8\% action fidelity is very high, this result is consistent with policy distillation literature. The student model is not learning from sparse, noisy environmental rewards, but rather from the "cleaned" behavioral targets provided by the converged teacher.  This supervised learning regime allows the student to rapidly effectively approximate the teacher's decision boundary, even with reduced capacity. The 256$\times$256 teacher provides a smooth, consistent gradient of Q-values that helps the 64$\times$64 student generalize better than if it were trained directly on raw experience.
 
     \begin{figure}[!t]
     \centering
     \includegraphics[width=0.48\textwidth]{distillation_curves.png}
-    \caption{Distillation performance. The student policy reaches $>$98\% accuracy within 40 epochs, demonstrating high fidelity to the teacher's logic.}
+    \caption{Distillation convergence. The rapid rise to $>$90\% accuracy within 10 epochs indicates that the teacher's policy has a clear, learnable structure that the smaller student network can easily capture.}
     \label{fig:distill_curve}
     \end{figure}
 
     \subsection{Sim-to-Real Policy Transfer (O2)}
 
-    The DQN policy (mean reward $-2.44 \pm 2.31$) was evaluated in the physics-based digital twin with domain randomization. As shown in Fig.~\ref{fig:traj}, the agent consistently learned to modulate temperature---using strategic heating (38.5\% of actions) and controlled heater-off periods (50.9\%)---to drive the chromatic index toward the ripe threshold ($X \leq 0.15$) before the deadline, achieving 100\% harvest rate with quality $>$0.95.
+    The DQN policy (mean reward $+4.05 \pm 1.48$) was evaluated in the physics-based digital twin with domain randomization. As shown in Fig.~\ref{fig:traj}, the agent consistently learned to modulate temperature---using strategic heating (31.4\% of actions) and controlled passive periods (Maintain 43.5\% + Cool 25.1\%)---to drive the chromatic index toward the ripe threshold ($X \leq 0.15$) before the deadline, achieving 100\% harvest rate with quality $>$0.95.
 
     \begin{figure}[!t]
     \centering
-    \includegraphics[width=0.48\textwidth]{ripening_trajectories.png}
+    \includegraphics[width=0.48\textwidth]{episode_1.png}
     \caption{Ripening trajectories controlled by the RL agent. The red line (Temperature) rises to accelerate ripening, driving the chromatic index $X$ (green line) from $\sim$1.0 (Green/unripe) toward the harvest threshold $X \leq 0.15$ (shaded area) before the deadline.}
     \label{fig:traj}
     \end{figure}
@@ -906,9 +591,37 @@
     \label{fig:envelope}
     \end{figure}
 
-    \subsection{Comparative Performance (O3)}
+    \subsection{Vision-Based Reference Tracking}
 
-    Table~\ref{tab:baseline_comparison} and Fig.~\ref{fig:policy_cmp} compare the Edge-RL agent against three baseline strategies (Random, Fixed-Maintain, Fixed-Heat). The RL agent significantly outperforms all baselines in total reward and quality score, achieving zero safety violations while maintaining tight timing error.
+    A key performance indicator is the agent's ability to track the "Ideal Ripening Curve" ($X_{\text{ref}}$) derived from the computer vision model's initial assessment. Fig.~\ref{fig:tracking} overlays the actual RL-controlled trajectory (Green) against the theoretical ideal trajectory (Blue Dashed).
+
+    \begin{figure}[!t]
+    \centering
+    \includegraphics[width=0.48\textwidth]{tracking_performance.png}
+    \caption{Tracking Performance: Actual ($X_{\text{actual}}$) vs. Ideal ($X_{\text{ref}}$). The RL agent (green) closely tracks the ideal vision-based reference (blue dashed), adjusting temperature to minimize the tracking error (shaded region). Deviations occur only when thermal constraints (ambient floor) physically prevent faster deceleration.}
+    \label{fig:tracking}
+    \end{figure}
+
+    The tight alignment between $X_{\text{actual}}$ and $X_{\text{ref}}$ demonstrates that the agent has effectively learned the inverse dynamics of the ripening process. It modulates temperature not just to hit a final target, but to follow a specific optimal path that preserves quality throughout the episode. The small tracking error (area between curves) indicates the system's responsiveness to the computed velocity requirements ($dX/dt$).
+
+    \subsection{Comparative Performance Analysis}
+
+    Table~\ref{tab:baseline_comparison} summarizes the performance metrics relative to baseline heuristics. While the RL agent shows a significant advantage in mean reward, the breakdown of behavior offers more insight into \textit{why} the baselines fail.
+
+    \begin{itemize}
+        \item \textbf{Random}: Fails to coordinate actions over time, leading to drift.
+        \item \textbf{Fixed-Day}: Passive strategy that cannot accelerate ripening when behind schedule.
+        \item \textbf{Fixed-Stage5 (Heuristic)}: A threshold-based rule ($X > 0.3 \to \text{Heat}$) that tends to overshoot. As seen in the negative reward ($-2.48$), this aggressive heating frequently triggers the safety guardrails ($T > 35^\circ$C), incurring heavy penalties.
+    \end{itemize}
+
+    \begin{figure}[!t]
+    \centering
+    \includegraphics[width=0.48\textwidth]{comparison_trajectory.png}
+    \caption{Behavioral Comparison: Edge-RL vs. Heuristic Baseline. The dashed gray line shows the heuristic policy oscillating and overheating (bottom panel, hitting 35$^\circ$C limit), while the RL agent (solid lines) applies smooth, anticipatory heating that tracks the reference efficiency without violating safety constraints.}
+    \label{fig:comparison_traj}
+    \end{figure}
+
+    Fig.~\ref{fig:comparison_traj} compares the trajectories of the RL agent against the Heuristic baseline on the same seed. The contrast highlights the RL agent's capability for \textit{anticipatory control}: it begins heating early and moderates the temperature as the fruit approaches the target. In contrast, the heuristic policy reacts too late and applies maximum heat, resulting in thermal safety violations (dashed orange line limit) that would damage the physical fruit. This demonstrates that the performance gap is not an artifact of simulation settings but a consequence of the heuristic's inability to model future thermal inertia.
 
     \begin{table}[htbp]
     \caption{Performance Comparison vs. Baselines (State Variant~B, 100 eval episodes)}
@@ -918,36 +631,26 @@
     \toprule
     \textbf{Policy} & \textbf{Quality} & \textbf{Timing Err (d)} & \textbf{Total Reward} \\
     \midrule
-    Random (3-action) & 0.954 & 4.06 & $-2.89 \pm 1.87$ \\
-    Fixed-Day (maintain only) & 0.954 & 4.03 & $-2.82 \pm 1.83$ \\
-    Fixed-Stage5 (heuristic) & 0.956 & 4.31 & $-340.61 \pm 231.75$ \\
-    \textbf{Edge-RL DQN (Ours)} & \textbf{0.955} & \textbf{3.81} & $\mathbf{-2.44 \pm 2.31}$ \\
+    Random & 0.949 & 2.40 & $+0.44 \pm 2.75$ \\
+    Fixed-Day & 0.952 & 2.46 & $+0.58 \pm 2.10$ \\
+    Fixed-Stage5 & 0.953 & 3.92 & $-2.48 \pm 1.86$ \\
+    \textbf{Edge-RL (Ours)} & \textbf{0.954} & \textbf{1.50} & $\mathbf{+4.05 \pm 1.48}$ \\
     \bottomrule
     \end{tabular}
-    \vspace{2pt}
-    \newline
-    {\scriptsize Total reward = $\sum(r_{\text{track}} + r_{\text{progress}} + c_{\text{safety}} + b_{\text{harvest}})$. Higher is better.  Timing error = $|t_{\text{rem}}|$ at auto-harvest. Quality = $1 - |X - X_{\text{target}}|$; all policies achieve $>$0.94 because auto-harvest at $X \leq 0.15$ guarantees a quality floor. The DQN achieves the best (least negative) reward and lowest timing error. Fixed-Stage5 catastrophically fails due to premature heating causing safety violations.}
     \end{table}
-
-    \begin{figure}[!t]
-    \centering
-    \includegraphics[width=0.48\textwidth]{policy_comparison.png}
-    \caption{Policy comparison across evaluation episodes. Edge-RL DQN achieves the best mean reward ($-2.44$) compared to Random ($-2.89$), Fixed-Day ($-2.82$), and Fixed-Stage5 ($-340.61$) baselines, with superior timing accuracy due to its learned adaptive control strategy.}
-    \label{fig:policy_cmp}
-    \end{figure}
 
     \subsection{Emergent Behavior \& Learned Control Strategy}
 
     Analysis of the trained DQN's action distribution reveals a balanced, physically sensible control strategy:
 
     \begin{itemize}
-        \item \textbf{Maintain}: 10.6\% --- conservative hold action used sparingly when ripening is precisely on-track.
-        \item \textbf{Heat}: 38.5\% --- strategic heating to accelerate ripening when the tomato is behind schedule.
-        \item \textbf{Cool (heater OFF)}: 50.9\% --- the dominant action, turning the heater relay OFF to allow passive drift toward ambient temperature.
+        \item \textbf{Maintain}: 43.5\% --- the favored action, minimizing interventions when the trajectory is on track.
+        \item \textbf{Heat}: 31.4\% --- strategic heating to accelerate ripening when the tomato is behind schedule.
+        \item \textbf{Cool (heater OFF)}: 25.1\% --- turning the heater relay OFF to allow passive drift toward ambient when ahead of schedule.
     \end{itemize}
 
     \subsubsection{Economic Rationality}
-    The cool-to-heat ratio of 1.32:1 reflects the physics of the heater-only system: while net heating is required to drive $X$ from $\sim$1.0 (Green) toward $0.0$ (Red) above the ambient baseline, the agent learned that \emph{pulsed} heating with majority heater-off periods is superior to continuous heating.  Since ``cool'' physically means turning the heater relay OFF and allowing passive dissipation toward ambient ($\sim$27$^{\circ}$C), the dominant 50.9\% cool action fraction represents \emph{energy savings}---the agent keeps the heater off more than half the time, relying on the warm Philippine ambient to sustain ripening.  Strategic heating bursts (38.5\%) are applied only when the ripening rate falls behind schedule.  This bang-bang-like control strategy emerges entirely from the reward structure without any explicit energy penalty term.
+    The agent learned that \emph{Maintain} (zero energy cost) is often the optimal action, accounting for nearly half (43.5\%) of all decisions. Combined with \emph{Cool} (heater off, 25.1\%), the system operates with the heater OFF for \textbf{68.6\%} of the time, engaging the 60W heating element only 31.4\% of the time to provide necessary acceleration. This emergent duty-cycling demonstrates high energy efficiency without requiring an explicit energy penalty in the reward function, as the agent naturally avoids the safety risks associated with overheating.
 
     \subsubsection{Safety Learning Dynamics}
     A notable finding is the agent's safety learning trajectory. During the exploration phase (0--600K timesteps, $\varepsilon > 0.15$), the agent triggered 4 evaluation checkpoints with mean reward $< -10$ due to occasional safety violations (worst: $-33.81$ at 630K).  In the final exploitation phase (600K--1M, $\varepsilon \leq 0.15$), the policy converged to a median reward of $-2.75$ with the best checkpoint achieving $-1.28$ at 920K steps, demonstrating that the capped progressive penalty ($c_{\text{safety}}$) successfully shaped the agent's behavior without destabilizing learning.

@@ -33,7 +33,7 @@ This project targets **precision agriculture** by automating the tomato ripening
 │   │   ├── download_dataset.py # Fetch dataset
 │   │   └── export_espdl.py # Quantize for ESP32
 │   ├── rl/                # Reinforcement Learning Module
-│   │   ├── train_sac.py   # Train SAC agent
+│   │   ├── train_dqn.py   # Train DQN agent
 │   │   ├── distill.py     # Distill RL policy for edge
 │   │   └── simulator.py   # Tomato ripening environment
 │   └── config.yaml        # Global hyperparameters
@@ -62,7 +62,7 @@ python ml_training/vision/train.py
 ### 2. Reinforcement Learning
 Train the control policy:
 ```bash
-python ml_training/rl/train_sac.py
+python ml_training/rl/train_dqn.py
 ```
 
 ### 3. Digital Twin Demo

@@ -10,7 +10,7 @@ Edge-RL follows a **two-layer architecture** (simplified from three-layer):
 │  (Your laptop/desktop — training & simulation)       │
 │                                                       │
 │  ┌─────────────┐  ┌─────────────┐  ┌──────────────┐ │
-│  │ Digital Twin │  │ SAC Training│  │ Model Export │ │
+│  │ Digital Twin │  │ DQN Training│  │ Model Export │ │
 │  │ Simulator    │→ │ (SB3)       │→ │ & Quantize   │ │
 │  └─────────────┘  └─────────────┘  └──────┬───────┘ │
 │                                            │         │
@@ -30,8 +30,8 @@ Edge-RL follows a **two-layer architecture** (simplified from three-layer):
 │                                           │          │
 │  ┌──────────┐                    ┌────────▼───────┐ │
 │  │ DHT22    │───────────────────→│ Action Output  │ │
-│  │ Temp/Hum │                    │ harvest/wait/  │ │
-│  └──────────┘                    │ adjust temp    │ │
+│  │ Temp/Hum │                    │ maintain/heat/ │ │
+│  └──────────┘                    │ cool (±1°C)    │ │
 │                                  └────────┬───────┘ │
 │                                           │          │
 │  ┌────────────────────────────────────────▼───────┐ │
@@ -102,25 +102,32 @@ External Flash (16MB):
 - **Export:** C header array for direct embedding in firmware
 
 ### RL Policy Training
-- **Algorithm:** Soft Actor-Critic (SAC) via Stable Baselines3
+- **Algorithm:** Deep Q-Network (DQN) via Stable Baselines3
 - **Environment:** Custom Gymnasium env wrapping digital twin simulator
-- **State space:** [ripeness_stage, temperature, humidity, days_elapsed, target_harvest_day, ...]
-- **Action space:** Discrete {maintain, heat, cool, harvest}
+- **State space (3 ablation variants):**
+  - **Option A (7D):** [X, Ẋ, X_ref, T, H, t_e, t_rem]
+  - **Option B (16D):** A + C_μ(3) + C_σ(3) + C_mode(3)
+  - **Option C (20D):** B + max_pool(4)
+- **Action space:** Discrete {maintain, heat(+ΔT), cool(−ΔT)} — 3 actions, incremental ±1°C
+- **Harvest:** Automatic post-processing when X ≤ 0.15 or t_rem ≤ 0
 - **Training:** ~500K steps, ~8 hours on CPU
 - **Distillation:** Teacher (256×256 MLP) → Student (64×64 MLP)
 - **Quantization:** FP32 → INT8, final size ~35KB
 
 ### Digital Twin Simulator
-Physics-based ripening model:
+Physics-based chromatic evolution ODE (ROYG convention):
 ```
-dR/dt = k₁ × (T - T_base) × (1 - R/R_max)
+dX/dt = −k₁ × (T - T_base) × X
 
 where:
-  R = ripeness stage [0-5]
-  T = temperature [12.5°C - 25°C]
-  k₁ = ripening rate constant
+  X = Continuous Chromatic Index [0-1]
+      ROYG convention: X=1.0 (Green/unripe) → X=0.0 (Red/ripe)
+  T = temperature [12.5°C - 35°C]
+  k₁ = cultivar-specific ripening rate constant
   T_base = 12.5°C (minimum ripening temperature)
-  R_max = 5.0 (fully ripe)
+
+Analytical reference trajectory:
+  X_ref(t) = exp(−k₁ × (T_ideal − T_base) × t)
 ```
 
 Domain randomization: temperature noise, sensor error, initial condition variation.
@@ -129,4 +136,4 @@ Domain randomization: temperature noise, sensor error, initial condition variati
 
 - **Primary:** Serial (USB) for development and debugging
 - **Optional:** MQTT over WiFi for remote monitoring
-- **Telemetry format:** JSON `{"ripeness": 3, "temp": 21.5, "humidity": 68, "action": "wait", "confidence": 0.92}`
+- **Telemetry format:** JSON `{"X": 0.72, "dX_dt": -0.03, "temp": 21.5, "humidity": 68, "t_rem": 4.5, "action": "maintain", "harvest_ready": false}`

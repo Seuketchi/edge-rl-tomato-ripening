@@ -66,14 +66,14 @@ A calibrated physics-based ripening simulator with domain randomization produces
 ### Variables
 - **Independent:** Simulator parameters, domain randomization range, training steps
 - **Dependent:** Policy action quality, sim-to-real gap, harvest timing accuracy
-- **Controlled:** RL algorithm (SAC), reward function, policy architecture
+- **Controlled:** RL algorithm (DQN), reward function, policy architecture
 
 ### Success Criteria
 | Metric | Target | Measurement Method |
 |---|---|---|
-| Simulation success rate | > 80% | % episodes where harvest within ±2 days of target |
+| Simulation success rate | > 80% | % episodes where $X \leq 0.15$ (ripe) before deadline |
 | Real-world plausibility | Actions match expert judgment in >75% of cases | Expert evaluation checklist |
-| Policy vs. fixed baseline | Outperforms "harvest at stage 5" rule | Average timing error comparison |
+| Policy vs. fixed baseline | Outperforms fixed-heat-only and fixed-maintain baselines | Average total reward comparison |
 | Sim-to-real performance gap | < 20% | Compare sim metrics to real deployment |
 
 ### Evaluation Protocol
@@ -81,7 +81,7 @@ A calibrated physics-based ripening simulator with domain randomization produces
 2. Record RL policy recommendations at each decision point
 3. Compare to:
    - What an expert would recommend (researcher's judgment)
-   - Fixed-rule baseline outputs
+   - Fixed-rule baseline outputs (e.g., heat-only, maintain-only)
    - Simulator predictions for same initial conditions
 4. Quantify gap between simulated expected outcomes and actual observed outcomes
 

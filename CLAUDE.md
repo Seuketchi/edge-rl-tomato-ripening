@@ -16,9 +16,9 @@ An undergraduate Computer Engineering thesis demonstrating **reinforcement learn
 ```
 [Kaggle Dataset] → [PyTorch: MobileNetV2 training] → [INT8 Quantize] ──┐
                                                                          ├→ [ESP32-S3 Firmware]
-[Digital Twin Sim] → [SB3: SAC RL training] → [Distill + INT8] ────────┘
+[Digital Twin Sim] → [SB3: DQN RL training] → [Distill + INT8] ────────┘
                                                                          │
-ESP32-S3 runs: OV2640 → Vision Model → RL Policy → Action (harvest/wait/adjust)
+ESP32-S3 runs: OV2640 → Vision Model → RL Policy → Action (maintain/heat/cool)
 ```
 
 ## Repository Structure
@@ -35,7 +35,7 @@ thesis-it/
 ├── edge_firmware/         ← ESP-IDF C firmware (ESP32-S3)
 ├── ml_training/           ← Python ML pipeline
 │   ├── vision/              # MobileNetV2 training, quantization
-│   ├── rl/                  # SAC training, digital twin, distillation
+│   ├── rl/                  # DQN training, digital twin, distillation
 │   └── data/                # Dataset management
 ├── validation/            ← Test protocols and analysis
 ├── hardware/              ← Schematics, BOM
@@ -47,7 +47,7 @@ thesis-it/
 | Component | Choice | Why |
 |---|---|---|
 | Vision model | MobileNetV2 0.35x (INT8) | Proven on ESP32, ~200KB |
-| RL algorithm | SAC (Soft Actor-Critic) | Off-policy, sample efficient |
+| RL algorithm | DQN (Deep Q-Network) | Simple, discrete actions, well-suited for 3-action space |
 | RL library | Stable Baselines3 | Mature, well-documented |
 | Edge framework | ESP-IDF v5.1+ | Official Espressif SDK |
 | ML runtime | ESP-DL v3.x + esp-ppq | ~10x faster than TFLite Micro on ESP32-S3 |

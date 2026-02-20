@@ -1,10 +1,10 @@
 """Policy distillation and export for edge deployment.
 
-Distills the trained SAC teacher policy into a compact student MLP,
+Distills the trained DQN teacher policy into a compact student MLP,
 then exports to ONNX and optionally to ESP-DL format.
 
 Pipeline:
-    1. Load trained SAC model (teacher)
+    1. Load trained DQN model (teacher)
     2. Generate rollout dataset using teacher policy
     3. Train student MLP via knowledge distillation
     4. Export student → ONNX → ESP-DL INT8
@@ -92,7 +92,7 @@ class StudentPolicy(nn.Module):
 
 
 def generate_teacher_rollouts(
-    teacher: SAC,
+    teacher: DQN,
     config: dict,
     num_samples: int = 100_000,
     seed: int = 42,
@@ -100,7 +100,7 @@ def generate_teacher_rollouts(
     """Generate (state, action) pairs from teacher policy.
 
     Args:
-        teacher: Trained SAC model.
+        teacher: Trained DQN model.
         config: Full config dict.
         num_samples: Number of (state, action) pairs to collect.
         seed: Random seed.
@@ -134,14 +134,14 @@ def generate_teacher_rollouts(
 
 
 def distill(
-    teacher: SAC,
+    teacher: DQN,
     config: dict,
     output_dir: Path,
 ) -> StudentPolicy:
     """Run knowledge distillation from teacher to student.
 
     Args:
-        teacher: Trained SAC model.
+        teacher: Trained DQN model.
         config: Full config dict.
         output_dir: Directory to save artifacts.
 
@@ -173,7 +173,7 @@ def distill(
 
     # Create student
     state_dim = states.shape[1]
-    action_dim = 4  # discrete actions
+    action_dim = 3  # discrete actions: maintain, heat, cool
     hidden_sizes = student_cfg.get("hidden_sizes", [64, 64])
 
     student = StudentPolicy(
@@ -223,6 +223,12 @@ def distill(
 
         if (epoch + 1) % 10 == 0 or epoch == 0:
             print(f"Epoch {epoch+1:3d}/{epochs}: loss={avg_loss:.4f}, accuracy={accuracy:.4f}")
+
+    # Save training history for reproducible figures
+    history_path = output_dir / "training_history.json"
+    with open(history_path, "w") as f:
+        json.dump({"loss": losses, "accuracy": accuracies}, f, indent=2)
+    print(f"Saved training history to {history_path}")
 
     # Save student
     student_path = output_dir / "student_policy.pth"
@@ -322,9 +328,9 @@ def evaluate_student(
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Distill SAC policy to compact student")
+    parser = argparse.ArgumentParser(description="Distill DQN policy to compact student")
     parser.add_argument("--config", type=str, default="ml_training/config.yaml")
-    parser.add_argument("--teacher", type=str, required=True, help="Path to trained SAC model .zip")
+    parser.add_argument("--teacher", type=str, required=True, help="Path to trained DQN model .zip")
     parser.add_argument("--output-dir", type=str, default=None)
     parser.add_argument("--skip-espdl", action="store_true")
     return parser.parse_args()
@@ -347,7 +353,7 @@ def main() -> None:
     # Load teacher
     print("--- Loading Teacher ---")
     teacher = DQN.load(args.teacher)
-    print(f"Loaded SAC model from {args.teacher}")
+    print(f"Loaded DQN model from {args.teacher}")
 
     # Distill
     print("\n--- Knowledge Distillation ---")
@@ -357,7 +363,10 @@ def main() -> None:
     print("\n--- Exporting to ONNX ---")
     state_dim = 9  # from environment
     onnx_path = output_dir / "rl_policy.onnx"
-    export_student_onnx(student, state_dim, onnx_path)
+    try:
+        export_student_onnx(student, state_dim, onnx_path)
+    except Exception as e:
+        print(f"⚠️ ONNX export failed (skipping): {e}")
 
     # Evaluate student
     print("\n--- Evaluating Student vs Teacher ---")

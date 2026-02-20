@@ -68,25 +68,44 @@ vision:
 rl:
   # Environment
   environment:
-    temp_range: [12.5, 25.0]      # Celsius
+    temp_range: [12.5, 35.0]      # Celsius (biological safe band)
     humidity_range: [60.0, 95.0]  # Percent
-    ripeness_stages: 6            # 0-5 (green to red)
     episode_days: 7               # Max episode length in days
     steps_per_day: 24             # Hourly decisions
     target_day_range: [3, 7]      # Target harvest day range
+    max_pool_dim: 4               # Dimension of max-pooled spatial vector
 
-  # Simulator physics
+    # State-space ablation variant
+    # A (7D):  [X, dX/dt, X_ref, T, H, t_e, t_rem]  — scalar-only baseline
+    # B (16D): A + [C_mu(3), C_sig(3), C_mode(3)]    — with colour statistics
+    # C (20D): B + [max_pool(4)]                      — full feature set
+    state_variant: "B"
+
+    # Reward function parameters
+    reward:
+      lambda_rate: 0.5            # Rate-tracking penalty weight (unit: per-day)
+      safety_alpha: 2.0           # Progressive safety penalty α (c = -α·min(n,cap)²)
+      safety_cap: 5               # Max consecutive violations before penalty plateaus
+      ripe_threshold: 0.15        # Auto-harvest X threshold (ROYG: X→0 = ripe)
+      t_rem_epsilon: 0.1          # Clamping floor to avoid singularity in f(·)
+      harvest_bonus: 10.0         # Terminal bonus for successful harvest
+      progress_weight: 2.0        # Per-step reward for ripening progress
+
+  # Simulator physics (ROYG convention: X=1 Green, X=0 Red)
   simulator:
     k1: 0.08                      # Ripening rate constant
     t_base: 12.5                  # Base temperature (°C)
-    r_max: 5.0                    # Max ripeness stage
+    x_min: 0.0                    # Minimum chromatic index (fully ripe)
     temp_noise_std: 0.5           # Temperature sensor noise
     humidity_noise_std: 2.0       # Humidity sensor noise
+    delta_t_step: 1.0             # Incremental temp change per action (°C)
+    ambient_temp_mean: 27.0       # Mean ambient temperature (°C) — Philippines climate
+    ambient_temp_std: 2.0         # Ambient variation (diurnal + stochastic)
 
-  # SAC Training
+  # DQN Training (3-action: maintain / heat / cool)
   training:
-    algorithm: "SAC"
-    total_timesteps: 750000
+    algorithm: "DQN"
+    total_timesteps: 1000000
     learning_rate: 0.0003
     buffer_size: 100000
     batch_size: 256
@@ -95,6 +114,7 @@ rl:
     n_envs: 4                    # Parallel environments
     eval_freq: 10000
     eval_episodes: 20
+    n_actions: 3                  # maintain, heat (+ΔT), cool (-ΔT)
 
   # Policy architecture
   policy:

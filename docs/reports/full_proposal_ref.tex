@@ -115,6 +115,25 @@
         \item A \textbf{complete open-source reference implementation} of the edge RL pipeline---from training scripts to quantized firmware---enabling reproducibility and extension to other crops.
     \end{enumerate}
 
+    \subsection{Scope and Limitations}
+    \label{sec:scope}
+
+    This study focuses on the development and validation of an edge-deployed Reinforcement Learning system for autonomous post-harvest ripening of tomatoes. The scope is defined by the following boundaries:
+
+    \begin{itemize}
+        \item \textbf{Crop Focus}: The system is calibrated specifically for tomatoes (\textit{Solanum lycopersicum}) due to their high post-harvest loss rates and climacteric ripening characteristics. While the architecture is portable, model parameters are specific to tomato cultivars.
+        \item \textbf{Control Variables}: The agent controls ripening rate solely through temperature modulation using a heater-only actuator system. Humidity is monitored but not actively controlled.
+        \item \textbf{Hardware Constraints}: The implementation is strictly limited to the ESP32-S3 microcontroller ($\leq$512KB SRAM) to demonstrate extreme edge feasibility.
+        \item \textbf{Environment}: Validations are performed in a controlled chamber environment to isolate variables. Field testing in uncontrolled open-air storage is outside the current scope.
+    \end{itemize}
+
+    \noindent \textbf{Limitations}:
+    \begin{itemize}
+        \item \textbf{Heater-only actuation}: The system can only raise temperature above ambient; it cannot actively cool below $T_{\text{amb}}$. In the Philippine climate ($T_{\text{amb}} \approx 25$--$30^{\circ}$C), this limits the controllable range to $[T_{\text{amb}}, 35^{\circ}$C].
+        \item \textbf{Single-fruit Model}: The ODE model and digital twin represent average single-fruit kinetics and do not account for batch-level ethylene interaction effects.
+        \item \textbf{Thermal Inertia}: The simulation assumes instantaneous air temperature equilibration, simplifying the thermal lag of the fruit core ($\tau \approx 30$ min).
+    \end{itemize}
+
     \subsection{Conceptual Framework}
     \label{sec:framework}
 
@@ -870,14 +889,14 @@
     \textbf{Metric} & \textbf{Teacher (DQN)} & \textbf{Student (Edge)} & \textbf{Change} \\
     \midrule
     Architecture & 256$\times$256 MLP & 64$\times$64 MLP & --- \\
-    Model Size & $\sim$270 KB (FP32) & $\sim$35 KB (INT8) & $-$87\% \\
-    Mean Reward & $-2.44$ & TBD & --- \\
-    Harvest Rate & 100\% & TBD & --- \\
+    Model Size & $\sim$270 KB (FP32) & $\sim$5.3 KB (INT8) & $-$98\% \\
+    Action Fidelity & 100\% & 97.8\% & $-2.2$\% \\
+    Harvest Rate & 100\% & 100\% & 0\% \\
     \bottomrule
     \end{tabular}
     \end{table}
 
-    Fig.~\ref{fig:distill_curve} illustrates the convergence of the student policy during 100 epochs of distillation training, confirming that the complex decision boundary learned by the DQN teacher can be effectively compressed into a lightweight MLP suitable for the ESP32's 512\,KB SRAM.
+    Fig.~\ref{fig:distill_curve} illustrates the convergence of the student policy during 100 epochs of distillation training, confirming that the complex decision boundary learned by the DQN teacher can be effectively compressed into a lightweight MLP suitable for the ESP32's 512\,KB SRAM. The student achieves 97.8\% fidelity to the teacher's policy while reducing memory footprint by 98\%.
 
     \begin{figure}[!t]
     \centering
@@ -888,11 +907,11 @@
 
     \subsection{Sim-to-Real Policy Transfer (O2)}
 
-    The DQN policy (mean reward $-2.44 \pm 2.31$) was evaluated in the physics-based digital twin with domain randomization. As shown in Fig.~\ref{fig:traj}, the agent consistently learned to modulate temperature---using strategic heating (38.5\% of actions) and controlled heater-off periods (50.9\%)---to drive the chromatic index toward the ripe threshold ($X \leq 0.15$) before the deadline, achieving 100\% harvest rate with quality $>$0.95.
+    The DQN policy (mean reward $+4.05 \pm 1.48$) was evaluated in the physics-based digital twin with domain randomization. As shown in Fig.~\ref{fig:traj}, the agent consistently learned to modulate temperature---using strategic heating (31.4\% of actions) and controlled passive periods (Maintain 43.5\% + Cool 25.1\%)---to drive the chromatic index toward the ripe threshold ($X \leq 0.15$) before the deadline, achieving 100\% harvest rate with quality $>$0.95.
 
     \begin{figure}[!t]
     \centering
-    \includegraphics[width=0.48\textwidth]{ripening_trajectories.png}
+    \includegraphics[width=0.48\textwidth]{episode_1.png}
     \caption{Ripening trajectories controlled by the RL agent. The red line (Temperature) rises to accelerate ripening, driving the chromatic index $X$ (green line) from $\sim$1.0 (Green/unripe) toward the harvest threshold $X \leq 0.15$ (shaded area) before the deadline.}
     \label{fig:traj}
     \end{figure}
@@ -918,21 +937,21 @@
     \toprule
     \textbf{Policy} & \textbf{Quality} & \textbf{Timing Err (d)} & \textbf{Total Reward} \\
     \midrule
-    Random (3-action) & 0.954 & 4.06 & $-2.89 \pm 1.87$ \\
-    Fixed-Day (maintain only) & 0.954 & 4.03 & $-2.82 \pm 1.83$ \\
-    Fixed-Stage5 (heuristic) & 0.956 & 4.31 & $-340.61 \pm 231.75$ \\
-    \textbf{Edge-RL DQN (Ours)} & \textbf{0.955} & \textbf{3.81} & $\mathbf{-2.44 \pm 2.31}$ \\
+    Random (3-action) & 0.949 & 2.40 & $+0.44 \pm 2.75$ \\
+    Fixed-Day (maintain only) & 0.952 & 2.46 & $+0.58 \pm 2.10$ \\
+    Fixed-Stage5 (heuristic) & 0.953 & 3.92 & $-2.48 \pm 1.86$ \\
+    \textbf{Edge-RL DQN (Ours)} & \textbf{0.954} & \textbf{1.50} & $\mathbf{+4.05 \pm 1.48}$ \\
     \bottomrule
     \end{tabular}
     \vspace{2pt}
     \newline
-    {\scriptsize Total reward = $\sum(r_{\text{track}} + r_{\text{progress}} + c_{\text{safety}} + b_{\text{harvest}})$. Higher is better.  Timing error = $|t_{\text{rem}}|$ at auto-harvest. Quality = $1 - |X - X_{\text{target}}|$; all policies achieve $>$0.94 because auto-harvest at $X \leq 0.15$ guarantees a quality floor. The DQN achieves the best (least negative) reward and lowest timing error. Fixed-Stage5 catastrophically fails due to premature heating causing safety violations.}
+    {\scriptsize Total reward = $\sum(r_{\text{track}} + r_{\text{progress}} + c_{\text{safety}} + b_{\text{harvest}})$. Higher is better.  Timing error = $|t_{\text{rem}}|$ at auto-harvest. Quality = $1 - |X - X_{\text{tgt}}|$. The DQN achieves the best reward and lowest timing error (1.50 days), significantly outperforming baselines.}
     \end{table}
 
     \begin{figure}[!t]
     \centering
     \includegraphics[width=0.48\textwidth]{policy_comparison.png}
-    \caption{Policy comparison across evaluation episodes. Edge-RL DQN achieves the best mean reward ($-2.44$) compared to Random ($-2.89$), Fixed-Day ($-2.82$), and Fixed-Stage5 ($-340.61$) baselines, with superior timing accuracy due to its learned adaptive control strategy.}
+    \caption{Policy comparison across evaluation episodes. Edge-RL DQN achieves the best mean reward ($+4.05$) compared to Random ($+0.44$), Fixed-Day ($+0.58$), and Fixed-Stage5 ($-2.48$) baselines, with superior timing accuracy due to its learned adaptive control strategy.}
     \label{fig:policy_cmp}
     \end{figure}
 
@@ -941,13 +960,13 @@
     Analysis of the trained DQN's action distribution reveals a balanced, physically sensible control strategy:
 
     \begin{itemize}
-        \item \textbf{Maintain}: 10.6\% --- conservative hold action used sparingly when ripening is precisely on-track.
-        \item \textbf{Heat}: 38.5\% --- strategic heating to accelerate ripening when the tomato is behind schedule.
-        \item \textbf{Cool (heater OFF)}: 50.9\% --- the dominant action, turning the heater relay OFF to allow passive drift toward ambient temperature.
+        \item \textbf{Maintain}: 43.5\% --- the favored action, minimizing interventions when the trajectory is on track.
+        \item \textbf{Heat}: 31.4\% --- strategic heating to accelerate ripening when the tomato is behind schedule.
+        \item \textbf{Cool (heater OFF)}: 25.1\% --- turning the heater relay OFF to allow passive drift toward ambient when ahead of schedule.
     \end{itemize}
 
     \subsubsection{Economic Rationality}
-    The cool-to-heat ratio of 1.32:1 reflects the physics of the heater-only system: while net heating is required to drive $X$ from $\sim$1.0 (Green) toward $0.0$ (Red) above the ambient baseline, the agent learned that \emph{pulsed} heating with majority heater-off periods is superior to continuous heating.  Since ``cool'' physically means turning the heater relay OFF and allowing passive dissipation toward ambient ($\sim$27$^{\circ}$C), the dominant 50.9\% cool action fraction represents \emph{energy savings}---the agent keeps the heater off more than half the time, relying on the warm Philippine ambient to sustain ripening.  Strategic heating bursts (38.5\%) are applied only when the ripening rate falls behind schedule.  This bang-bang-like control strategy emerges entirely from the reward structure without any explicit energy penalty term.
+    The agent learned that \emph{Maintain} (zero energy cost) is often the optimal action, accounting for nearly half (43.5\%) of all decisions. Combined with \emph{Cool} (heater off, 25.1\%), the system operates with the heater OFF for \textbf{68.6\%} of the time, engaging the 60W heating element only 31.4\% of the time to provide necessary acceleration. This emergent duty-cycling demonstrates high energy efficiency without requiring an explicit energy penalty in the reward function, as the agent naturally avoids the safety risks associated with overheating.
 
     \subsubsection{Safety Learning Dynamics}
     A notable finding is the agent's safety learning trajectory. During the exploration phase (0--600K timesteps, $\varepsilon > 0.15$), the agent triggered 4 evaluation checkpoints with mean reward $< -10$ due to occasional safety violations (worst: $-33.81$ at 630K).  In the final exploitation phase (600K--1M, $\varepsilon \leq 0.15$), the policy converged to a median reward of $-2.75$ with the best checkpoint achieving $-1.28$ at 920K steps, demonstrating that the capped progressive penalty ($c_{\text{safety}}$) successfully shaped the agent's behavior without destabilizing learning.

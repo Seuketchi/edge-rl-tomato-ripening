@@ -27,7 +27,7 @@ const chartCanvas = document.getElementById('chartCanvas');
 const chartCtx = chartCanvas.getContext('2d');
 
 function connect() {
-    ws = new WebSocket('ws://localhost:8765');
+    ws = new WebSocket('ws://127.0.0.1:8765');
 
     ws.onopen = () => {
         connected = true;

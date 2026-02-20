@@ -263,7 +263,7 @@ async def main():
     print(f"   Model: {MODEL_PATH.name}")
     print(f"   Open the frontend at http://localhost:8080\n")
 
-    async with websockets.serve(handler, "localhost", port):
+    async with websockets.serve(handler, "0.0.0.0", port):
         await asyncio.Future()  # run forever
 
 
