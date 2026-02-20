@@ -25,7 +25,7 @@ Edge-RL follows a **two-layer architecture** (simplified from three-layer):
 │                                                       │
 │  ┌──────────┐  ┌──────────────┐  ┌────────────────┐ │
 │  │ OV2640   │→ │ Vision Model │→ │ RL Policy      │ │
-│  │ Camera   │  │ (INT8, ~300KB│  │ (INT8, ~35KB)  │ │
+│  │ Camera   │  │ (INT8, ~300KB│  │ (FP32, ~21KB)  │ │
 │  └──────────┘  └──────────────┘  └───────┬────────┘ │
 │                                           │          │
 │  ┌──────────┐                    ┌────────▼───────┐ │
@@ -44,25 +44,28 @@ Edge-RL follows a **two-layer architecture** (simplified from three-layer):
 
 ### Hardware Components
 
-| Component | Model | Cost | Purpose |
-|---|---|---|---|
-| MCU | ESP32-S3-DevKitC-1 (N16R8) | ~$8 | Core processor, 16MB Flash, 8MB PSRAM |
-| Camera | OV2640 (2MP) | ~$5 | RGB image capture at 320×240 |
-| Sensor | DHT22 | ~$3 | Temperature + humidity |
-| LED | WS2812B strip (8 LEDs) | ~$2 | Status indicators |
-| Power | USB-C cable + adapter | ~$5 | 5V power supply |
-| Misc | Breadboard, wires, enclosure | ~$10 | Assembly |
-| **Total** | | **~$33** | |
+| Component | Model | Details |
+|---|---|---|
+| Board | ESP32-S3-CAM N16R8 | Dual-core Xtensa LX7, up to 240 MHz |
+| Flash | 16 MB | SPI Flash |
+| PSRAM | 8 MB | Octal SPI PSRAM |
+| Camera | OV2640 (2MP) / OV5640 (5MP) | JPEG, YUV, RGB565 formats |
+| Sensor | DHT22 | Temperature + humidity |
+| Wireless | WiFi 802.11 b/g/n + BLE 5.0 | 2.4 GHz |
+| Interface | USB Type-C | Programming, power, debugging |
+| Storage | MicroSD slot | Up to 32 GB |
+| Dimensions | 54 mm × 25 mm × 13 mm | Without camera cable |
+| Op. Temp | -20°C to +70°C | |
 
 ### Memory Map (ESP32-S3 N16R8)
 
 ```
 Internal SRAM (512KB):
   ├── FreeRTOS kernel + stacks    ~80KB
-  ├── WiFi/MQTT stack             ~60KB
+  ├── WiFi/BLE stack               ~60KB
   ├── Sensor buffers              ~10KB
-  ├── RL policy weights (INT8)    ~35KB
-  ├── Inference scratch space     ~50KB
+  ├── RL policy weights (FP32)     ~21KB
+  ├── Inference scratch space      ~2KB
   └── Available                   ~277KB
 
 External PSRAM (8MB):
@@ -73,13 +76,13 @@ External PSRAM (8MB):
   └── Available                   ~6.9MB
 
 External Flash (16MB):
-  ├── Bootloader                  ~32KB
+  ├── Bootloader                  ~21KB
   ├── Partition table             ~4KB
-  ├── Application firmware        ~2MB
-  ├── Model data partition        ~2MB
+  ├── Application firmware        ~237KB (current build)
+  ├── Model data partition        ~2MB (reserved)
   ├── OTA partition (app backup)  ~2MB
   ├── NVS (config storage)        ~64KB
-  └── Available                   ~9.9MB
+  └── Available                   ~11.7MB
 ```
 
 ### FreeRTOS Task Architecture
@@ -111,8 +114,8 @@ External Flash (16MB):
 - **Action space:** Discrete {maintain, heat(+ΔT), cool(−ΔT)} — 3 actions, incremental ±1°C
 - **Harvest:** Automatic post-processing when X ≤ 0.15 or t_rem ≤ 0
 - **Training:** ~500K steps, ~8 hours on CPU
-- **Distillation:** Teacher (256×256 MLP) → Student (64×64 MLP)
-- **Quantization:** FP32 → INT8, final size ~35KB
+- **Distillation:** Teacher (256×256 MLP) → Student (64×64 MLP), 97.78% accuracy
+- **Deployment:** FP32, ~21KB weights, pure C inference (no ML library)
 
 ### Digital Twin Simulator
 Physics-based chromatic evolution ODE (ROYG convention):
