@@ -16,8 +16,8 @@
 #define TASK_STACK_CAMERA           4096
 #define TASK_STACK_SENSORS          2048
 #define TASK_STACK_VISION           8192   /* larger: runs model inference */
-#define TASK_STACK_POLICY           4096
-#define TASK_STACK_TELEMETRY        2048
+#define TASK_STACK_POLICY           8192   /* larger: MLP inference + golden test + ODE sim */
+#define TASK_STACK_TELEMETRY        4096   /* JSON formatting needs space */
 
 /* ---- Timing ---- */
 #define CAPTURE_INTERVAL_MS         (30 * 60 * 1000)  /* 30 minutes */

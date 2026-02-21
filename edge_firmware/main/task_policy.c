@@ -159,47 +159,40 @@ static int run_golden_test(void)
 #define SIM_RIPE_THRESH 0.3f    /* X <= this → ripe */
 #define SIM_DT_EFFECT    1.5f   /* temperature delta per action step */
 
-static void run_ondevice_sim(void)
+static void run_sim_scenario(const char *label, float T_start, int steps)
 {
     ESP_LOGI(TAG, "");
-    ESP_LOGI(TAG, "╔══════════════════════════════════════╗");
-    ESP_LOGI(TAG, "║   ON-DEVICE ODE SIMULATION (36 steps)║");
-    ESP_LOGI(TAG, "╚══════════════════════════════════════╝");
+    ESP_LOGI(TAG, "  ── Scenario: %s (T₀=%.0f°C, %d steps) ──", label, T_start, steps);
 
-    /* Initial conditions */
-    float X = 0.90f;          /* Green tomato */
-    float T = SIM_T_AMB;      /* Ambient temperature */
-    float H = 65.0f;          /* Humidity % */
+    float X = 0.90f;
+    float T = T_start;
+    float H = 65.0f;
     float total_reward = 0.0f;
     int   harvest_step = -1;
+    int   n_heat = 0, n_cool = 0, n_maintain = 0;
 
     ESP_LOGI(TAG, "  %-4s  %-6s  %-6s  %-10s  %-6s", 
              "Step", "X", "T(°C)", "Action", "Conf");
     ESP_LOGI(TAG, "  ──── ────── ────── ────────── ──────");
 
-    for (int step = 0; step < SIM_STEPS; step++) {
+    for (int step = 0; step < steps; step++) {
         float hours_elapsed = (float)step * SIM_DT_HOURS;
         float days_elapsed  = hours_elapsed / 24.0f;
         float t_rem         = SIM_TARGET_DAY - days_elapsed;
-        float dx_dt         = 0.0f;  /* simplified for sim */
+        float dx_dt         = 0.0f;
 
-        /* Reference trajectory */
-        float t_days = hours_elapsed / 24.0f;
-        float x_ref  = expf(-SIM_K1 * (SIM_T_AMB - SIM_T_BASE) * t_days);
+        float x_ref = expf(-SIM_K1 * (T_start - SIM_T_BASE) * (hours_elapsed / 24.0f));
 
-        /* Assemble 16D state vector (Variant B) */
         float state[POLICY_STATE_DIM];
         memset(state, 0, sizeof(state));
-        state[0]  = X;              /* Chromatic index */
-        state[1]  = dx_dt;          /* dX/dt */
-        state[2]  = x_ref;          /* X_ref */
-        /* state[3..11] = colour stats (zeros in sim) */
-        state[12] = T;              /* Temperature */
-        state[13] = H;              /* Humidity */
-        state[14] = days_elapsed;   /* t_elapsed */
-        state[15] = t_rem;          /* t_remaining */
+        state[0]  = X;
+        state[1]  = dx_dt;
+        state[2]  = x_ref;
+        state[12] = T;
+        state[13] = H;
+        state[14] = days_elapsed;
+        state[15] = t_rem;
 
-        /* Run policy inference */
         uint8_t action = 0;
         float   conf   = 0.0f;
         esp_err_t err = edge_rl_policy_infer(state, POLICY_STATE_DIM,
@@ -209,46 +202,160 @@ static void run_ondevice_sim(void)
             break;
         }
 
+        if (action == ACTION_HEAT) n_heat++;
+        else if (action == ACTION_COOL) n_cool++;
+        else n_maintain++;
+
         ESP_LOGI(TAG, "  %-4d  %.3f   %.1f   %-10s  %.3f%s",
                  step, X, T, ACTION_NAMES[action], conf,
                  X <= SIM_RIPE_THRESH ? "  ← RIPE" : "");
 
-        /* Apply action — temperature effect */
-        float T_before = T;
+        /* Apply action */
         if (action == ACTION_HEAT) {
             T = fminf(T + SIM_DT_EFFECT, SAFETY_TEMP_MAX);
         } else if (action == ACTION_COOL) {
             T = fmaxf(T - SIM_DT_EFFECT, SIM_T_AMB - 2.0f);
         }
-        /* else MAINTAIN: T stays */
 
-        /* ODE step: dX/dt = -k1 * (T - T_base) * X + noise */
+        /* ODE step */
         float dX = -SIM_K1 * (T - SIM_T_BASE) * X * (SIM_DT_HOURS / 24.0f);
         X += dX;
         X = fmaxf(X, 0.0f);
         X = fminf(X, 1.0f);
 
-        /* Simple reward: negative absolute tracking error */
         float reward = -fabsf(X - x_ref);
         total_reward += reward;
 
-        /* Check harvest */
         if (harvest_step < 0 && X <= SIM_RIPE_THRESH) {
             harvest_step = step;
         }
     }
 
+    ESP_LOGI(TAG, "  Result: X=%.3f T=%.1f°C reward=%+.2f harvest=%s",
+             X, T, total_reward,
+             harvest_step >= 0 ? "yes" : "no");
+    ESP_LOGI(TAG, "  Actions: HEAT=%d MAINTAIN=%d COOL=%d",
+             n_heat, n_maintain, n_cool);
+}
+
+static void run_ondevice_sim(void)
+{
+    ESP_LOGI(TAG, "");
+    ESP_LOGI(TAG, "╔══════════════════════════════════════╗");
+    ESP_LOGI(TAG, "║   ON-DEVICE ODE SIMULATION (36 steps)║");
+    ESP_LOGI(TAG, "╚══════════════════════════════════════╝");
+
+    /*
+     * Use states from the golden vectors as seeds.
+     * These contain realistic colour statistics (state[3..11])
+     * from actual training episodes, which is what the policy
+     * was trained on. We advance X with ODE physics and inject
+     * temperature disturbances to trigger different actions.
+     *
+     * Disturbance schedule:
+     *   Steps  0-11: T=28°C (warm  → policy should COOL)
+     *   Steps 12-23: T=25°C (ideal → policy should MAINTAIN)
+     *   Steps 24-35: T=33°C + low X (ripe → policy should HEAT)
+     */
+
+    float X = 0.87f;     /* Start like golden vector 0 */
+    float T = 28.0f;     /* Warm start */
+    float H = 73.0f;
+    int   n_heat = 0, n_cool = 0, n_maintain = 0;
+
+    /* Borrow colour stats from golden vector 0 */
+    float colour_mu[3]   = { 2.752703e-01f, 7.789695e-01f, 2.417160e-01f };
+    float colour_sig[3]  = { 1.0e-01f, 1.0e-01f, 5.0e-02f };
+    float colour_mode[3] = { 3.846127e-01f, 8.142149e-01f, 2.418582e-01f };
+
+    ESP_LOGI(TAG, "  %-4s  %-6s  %-6s  %-10s  %-6s",
+             "Step", "X", "T(°C)", "Action", "Conf");
+    ESP_LOGI(TAG, "  ──── ────── ────── ────────── ──────");
+
+    for (int step = 0; step < SIM_STEPS; step++) {
+        float hours_elapsed = (float)step * SIM_DT_HOURS;
+        float days_elapsed  = hours_elapsed / 24.0f;
+        float t_rem         = SIM_TARGET_DAY - days_elapsed;
+
+        /* Inject temperature disturbances every 12 steps */
+        if (step == 0) {
+            T = 28.0f;   /* Phase 1: warm → expect COOL */
+            ESP_LOGI(TAG, "  ── Phase 1: Warm disturbance (T=28°C) ──");
+        } else if (step == 12) {
+            T = 25.0f;   /* Phase 2: optimal → expect MAINTAIN */
+            ESP_LOGI(TAG, "  ── Phase 2: Optimal conditions (T=25°C) ──");
+        } else if (step == 24) {
+            T = 33.0f;   /* Phase 3: hot + ripe → expect HEAT or COOL */
+            ESP_LOGI(TAG, "  ── Phase 3: Hot disturbance (T=33°C) ──");
+        }
+
+        /* Compute reference at the IDEAL temperature, not current */
+        float x_ref = expf(-SIM_K1 * (SIM_T_AMB - SIM_T_BASE) * days_elapsed);
+
+        /* Compute derivative */
+        float dx_dt = -SIM_K1 * (T - SIM_T_BASE) * X / 24.0f;
+
+        /* Assemble 16D state (Variant B) with realistic colour stats */
+        float state[POLICY_STATE_DIM];
+        state[0]  = X;
+        state[1]  = dx_dt;
+        state[2]  = x_ref;
+        state[3]  = colour_mu[0];
+        state[4]  = colour_mu[1];
+        state[5]  = colour_mu[2];
+        state[6]  = colour_sig[0];
+        state[7]  = colour_sig[1];
+        state[8]  = colour_sig[2];
+        state[9]  = colour_mode[0];
+        state[10] = colour_mode[1];
+        state[11] = colour_mode[2];
+        state[12] = T;
+        state[13] = H;
+        state[14] = days_elapsed;
+        state[15] = t_rem;
+
+        uint8_t action = 0;
+        float   conf   = 0.0f;
+        edge_rl_policy_infer(state, POLICY_STATE_DIM, &action, &conf);
+
+        if (action == ACTION_HEAT) n_heat++;
+        else if (action == ACTION_COOL) n_cool++;
+        else n_maintain++;
+
+        ESP_LOGI(TAG, "  %-4d  %.3f   %.1f   %-10s  %.3f%s",
+                 step, X, T, ACTION_NAMES[action], conf,
+                 X <= SIM_RIPE_THRESH ? "  ← RIPE" : "");
+
+        /* Apply action */
+        if (action == ACTION_HEAT) {
+            T = fminf(T + SIM_DT_EFFECT, SAFETY_TEMP_MAX);
+        } else if (action == ACTION_COOL) {
+            T = fmaxf(T - SIM_DT_EFFECT, 15.0f);
+        }
+
+        /* ODE step */
+        float dX = -SIM_K1 * (T - SIM_T_BASE) * X * (SIM_DT_HOURS / 24.0f);
+        X += dX;
+        X = fmaxf(X, 0.0f);
+        X = fminf(X, 1.0f);
+
+        /* Evolve colour stats slightly as tomato ripens */
+        colour_mu[0]   += 0.02f * (1.0f - X);   /* red channel increases */
+        colour_mu[1]   -= 0.01f * (1.0f - X);   /* green decreases */
+        colour_mode[0] += 0.015f * (1.0f - X);
+        colour_mode[1] -= 0.008f * (1.0f - X);
+
+        if (X <= SIM_RIPE_THRESH && step >= 24) {
+            break;  /* Harvest once ripe in phase 3 */
+        }
+    }
+
     ESP_LOGI(TAG, "");
     ESP_LOGI(TAG, "  ════════════════════════════════════");
-    ESP_LOGI(TAG, "  ✓ Episode complete");
-    ESP_LOGI(TAG, "    Final X:      %.3f %s", X,
-             X <= SIM_RIPE_THRESH ? "(RIPE)" : "(still ripening)");
-    ESP_LOGI(TAG, "    Final T:      %.1f °C", T);
-    ESP_LOGI(TAG, "    Total reward: %+.2f", total_reward);
-    if (harvest_step >= 0) {
-        ESP_LOGI(TAG, "    Harvest step: %d (%.1f hours)",
-                 harvest_step, harvest_step * SIM_DT_HOURS);
-    }
+    ESP_LOGI(TAG, "  ✓ Simulation complete");
+    ESP_LOGI(TAG, "    Final X: %.3f  Final T: %.1f°C", X, T);
+    ESP_LOGI(TAG, "    Actions: HEAT=%d MAINTAIN=%d COOL=%d",
+             n_heat, n_maintain, n_cool);
     ESP_LOGI(TAG, "  ════════════════════════════════════");
     ESP_LOGI(TAG, "");
 }

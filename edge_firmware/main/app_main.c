@@ -44,12 +44,17 @@ void app_main(void)
     g_state_mutex = xSemaphoreCreateMutex();
     ESP_ERROR_CHECK(g_state_mutex == NULL ? ESP_ERR_NO_MEM : ESP_OK);
 
-    /* Spawn tasks */
+    /* Spawn software-only tasks first (golden test + ODE sim run immediately) */
+    xTaskCreate(edge_rl_task_policy,    "policy",    TASK_STACK_POLICY,    NULL, TASK_PRIORITY_POLICY,    NULL);
+    xTaskCreate(edge_rl_task_telemetry, "telemetry", TASK_STACK_TELEMETRY, NULL, TASK_PRIORITY_TELEMETRY, NULL);
+
+    /* Small delay so policy golden test / ODE sim output isn't interleaved */
+    vTaskDelay(pdMS_TO_TICKS(100));
+
+    /* Spawn hardware-dependent tasks (safe to fail without peripherals) */
     xTaskCreate(edge_rl_task_sensors,   "sensors",   TASK_STACK_SENSORS,   NULL, TASK_PRIORITY_SENSORS,   NULL);
     xTaskCreate(edge_rl_task_camera,    "camera",    TASK_STACK_CAMERA,    NULL, TASK_PRIORITY_CAMERA,    NULL);
     xTaskCreate(edge_rl_task_vision,    "vision",    TASK_STACK_VISION,    NULL, TASK_PRIORITY_VISION,    NULL);
-    xTaskCreate(edge_rl_task_policy,    "policy",    TASK_STACK_POLICY,    NULL, TASK_PRIORITY_POLICY,    NULL);
-    xTaskCreate(edge_rl_task_telemetry, "telemetry", TASK_STACK_TELEMETRY, NULL, TASK_PRIORITY_TELEMETRY, NULL);
 
     ESP_LOGI(TAG, "All tasks spawned. System running.");
 }
