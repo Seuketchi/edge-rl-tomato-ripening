@@ -1,7 +1,7 @@
-\chapter{Methodology}
+\section{Methodology}
 \label{ch:methodology}
 
-\section{System Architecture}
+\subsection{System Architecture}
 The Edge-RL system is designed as a closed-loop control system where a microcontroller (ESP32-S3) makes real-time decisions based on visual feedback from a camera and environmental data from sensors. The architecture consists of three main subsystems: the Perception Module, the Decision Engine (RL Policy), and the Actuation System.
 
 \begin{figure}[htbp]
@@ -32,19 +32,22 @@ The Edge-RL system is designed as a closed-loop control system where a microcont
     \caption{System Block Diagram. The ESP32-S3 handles both vision (Continuous Chromatic Index extraction) and control (RL inference). Sensors provide feedback from the physical chamber.}
     \label{fig:arch}
 \end{figure}
+
+The perception pipeline begins with the OV2640 camera capturing an RGB frame of the tomato at user-configurable intervals (default: every 30 minutes). A MobileNetV2 feature extractor, trained via transfer learning on a tomato ripeness dataset, computes a Continuous Chromatic Index $X \in [0, 1]$. A DHT22 sensor provides chamber temperature $T$ and relative humidity $H$. These readings, combined with temporal signals (elapsed time $t_e$ and remaining time $t_{\text{rem}}$), form the state vector $S_t$ fed to the RL policy.
+
 Classification accuracy is evaluated using per-class precision, recall, F1-score, and a confusion matrix. The target is $\geq$85\% top-1 accuracy on held-out test images, comparable to similar deep learning approaches for tomato ripeness classification \cite{zhang2021tomato, phan2023tomato}. Transfer learning effectiveness is quantified through an ablation study: (i)~training from scratch, (ii)~ImageNet pre-training only, and (iii)~pre-training + fine-tuning on real tomato images.
 
-\section{Digital Twin Construction}
-To overcome the data inefficiency of RL, we constructed a physics-based digital twin that models the ripening kinetics of the tomato.
+\subsection{Digital Twin Construction}
+To overcome the data inefficiency of RL, we constructed a physics-based digital twin that models the ripening kinetics of the tomato. The simulator faithfully reproduces the thermal dynamics of the physical ripening chamber and the biological response of the fruit.
 
-\subsection{Ripening Dynamics (ODE)}
+\subsubsection{Ripening Dynamics (ODE)}
 We model the ripening process using a first-order Ordinary Differential Equation (ODE) derived from Arrhenius kinetics. The Continuous Chromatic Index ($X \in [0, 1]$) represents the ripeness state, where $X=1$ is Green and $X=0$ is Red. The rate of change $\frac{dX}{dt}$ is governed by temperature $T$:
 
     \noindent In an increasing frequency along the visible spectrum, the range proceeds from Red to Green (ROYG). Thus, $X$ maps directly to this spectral ordering: high $X$ corresponds to the green end and low $X$ to the red end.  X is derived from the mean RGB statistics of the tomato ROI by mapping the ROYG spectral shift to a peak-wavelength intensity ratio.  Unlike the 0--5 USDA staging \cite{usda1991} that discretizes a continuous process, $X$ preserves the full gradient of color change, enabling proportional control and fine-grained reward shaping.
 
 \begin{equation}
     \frac{dX}{dt} = -k_1 (T - T_{base}) X
-    \label{eq:k1}
+    \label{eq:ode_ripening}
 \end{equation}
 
 where:
@@ -54,24 +57,66 @@ where:
     \item $T$: Current chamber temperature ($^\circ$C).
 \end{itemize}
 
-\subsection{Thermal Model}
+\subsubsection{Thermal Model}
 The chamber temperature $T$ acts as the control variable. Since the system uses a heater-only configuration with passive cooling, the temperature dynamics are modeled as:
 \begin{equation}
     T_{t+1} = T_t + \Delta u \cdot \text{Action} + k_{loss}(T_{amb} - T_t)
 \end{equation}
 where $k_{loss}$ represents thermal leakage to the ambient environment $T_{amb}$.
 
-\section{Reinforcement Learning Formulation}
-The problem is formulated as a Partially Observable Markov Decision Process (POMDP), derived as follows:
+\subsubsection{Domain Randomization}
+To ensure the RL policy generalizes beyond the nominal simulator parameters, the digital twin applies domain randomization at each episode reset. This forces the agent to learn robust strategies rather than overfitting to a single set of physics.
 
-\subsection{State Space}
-The observation vector $S_t$ consists of 9 features:
-\begin{itemize}
-    \item Current Ripeness ($X$) and Rate of Change ($\dot{X}$).
-    \item Environmental conditions: Chamber Temp ($T$), Humidity ($H$).
-    \item Time encoding: Days Elapsed ($t_e$) and Time Remaining ($t_{rem}$).
-    \item Color Statistics: RGB Mean and Mode (to handle noise).
-\end{itemize}
+\begin{table}[htbp]
+\caption{Domain Randomization Parameters}
+\label{tab:domain_rand}
+\centering
+\begin{tabular}{@{}llc@{}}
+\toprule
+\textbf{Parameter} & \textbf{Distribution} & \textbf{Nominal} \\
+\midrule
+$k_1$ (ripening rate) & $\mathcal{U}(0.06, 0.10)$ & 0.08 \\
+$T_{amb}$ (ambient temp.) & $\mathcal{N}(27.0, 2.0)$ & 27.0$^\circ$C \\
+Initial $X_0$ & $\mathcal{U}(0.85, 0.95)$ & 0.90 \\
+Target harvest day & $\mathcal{U}(3.0, 7.0)$ & 5.0 days \\
+Temp. sensor noise & $\mathcal{N}(0, 0.5)$ & --- \\
+Humidity sensor noise & $\mathcal{N}(0, 2.0)$ & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The ambient temperature mean of 27.0$^\circ$C was chosen to reflect typical Philippine lowland conditions \cite{fao2019}. The ripening rate $k_1$ was varied $\pm 25\%$ around the nominal value to capture inter-cultivar variability between fast-ripening native varieties and slower commercial hybrids.
+
+\subsection{Reinforcement Learning Formulation}
+The problem is formulated as an episodic Markov Decision Process (MDP), with the agent interacting with the digital twin at hourly intervals. We define the state space, action space, and reward function as follows.
+
+\subsubsection{State Space: Three Ablation Variants}
+\label{subsec:state_variants}
+
+A key contribution of this work is the systematic evaluation of three state-space representations of increasing dimensionality. Each variant adds richer perceptual features to test whether colour statistics from the camera improve policy performance beyond scalar environmental readings.
+
+\begin{table}[htbp]
+\caption{State-Space Ablation Variants}
+\label{tab:state_variants}
+\centering
+\begin{tabular}{@{}clp{4.2cm}@{}}
+\toprule
+\textbf{Variant} & \textbf{Dim} & \textbf{Features} \\
+\midrule
+A (Scalar) & 7D & $X, \dot{X}, X_{\text{ref}}, T, H, t_e, t_{\text{rem}}$ \\
+\addlinespace
+B (+RGB Stats) & 16D & Variant A + $C_\mu$(3), $C_\sigma$(3), $C_{\text{mode}}$(3) \\
+\addlinespace
+C (+Spatial) & 20D & Variant B + $\text{maxpool}$(4) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Variant A} provides the minimal set of scalar observations: the current Chromatic Index $X$, its finite-difference derivative $\dot{X} = X_t - X_{t-1}$, a reference signal $X_{\text{ref}}$ from the analytical ODE solution at ideal temperature, the chamber temperature $T$, humidity $H$, elapsed time $t_e$, and remaining time until the target harvest $t_{\text{rem}} = t_{\text{target}} - t_e$.
+
+\textbf{Variant B} extends Variant A with nine colour statistics extracted from the segmented tomato ROI: the RGB channel means $C_\mu = (\mu_R, \mu_G, \mu_B)$, standard deviations $C_\sigma = (\sigma_R, \sigma_G, \sigma_B)$, and modal values $C_{\text{mode}} = (m_R, m_G, m_B)$. These features provide the policy with direct access to colour distribution information rather than relying solely on the scalar index $X$.
+
+\textbf{Variant C} further augments Variant B with a 4-dimensional max-pooled spatial feature vector, capturing spatial heterogeneity in ripeness (e.g., partial ripening where the stem end remains green while the blossom end reddens).
 
 \begin{figure}[htbp]
     \centering
@@ -81,12 +126,18 @@ The observation vector $S_t$ consists of 9 features:
         \node[block, fill=blue!10, text width=1.5cm, below=0.2cm of input1] (input2) {$T, H$};
         \node[block, fill=gray!10, text width=1.5cm, below=0.2cm of input2] (input3) {$t_e, t_{\text{rem}}$};
         \node[block, fill=orange!10, text width=1.5cm, below=0.2cm of input3] (input4) {RGB Stats};
+        \node[block, fill=purple!10, text width=1.5cm, below=0.2cm of input4] (input5) {Max-pool};
+
+        % Variant labels
+        \node[right=0.05cm of input3, font=\tiny, text=gray] {A};
+        \node[right=0.05cm of input4, font=\tiny, text=gray] {B};
+        \node[right=0.05cm of input5, font=\tiny, text=gray] {C};
 
         % State Vector
-        \node[blockwide, fill=gray!20, text width=1.0cm, right=1.0cm of input2, yshift=-0.5cm, minimum height=2.5cm, label=above:State Vector $S_t$] (state) {};
+        \node[blockwide, fill=gray!20, text width=1.0cm, right=1.0cm of input2, yshift=-0.8cm, minimum height=3.2cm, label=above:State $S_t$] (state) {};
         
         % MLP
-        \node[model, right=1.0cm of state, text width=1.5cm, label=above:Student MLP] (mlp) {64$\times$64\\INT8};
+        \node[model, right=1.0cm of state, text width=1.5cm, label=above:Student MLP] (mlp) {64$\times$64\\FP32};
 
         % Output
         \node[output, right=1.0cm of mlp, text width=1.5cm] (action) {Action $A_t$\\\{0, 1, 2\}};
@@ -96,47 +147,170 @@ The observation vector $S_t$ consists of 9 features:
         \draw[arrow] (input2.east) -- (state.west |- input2.east);
         \draw[arrow] (input3.east) -- (state.west |- input3.east);
         \draw[arrow] (input4.east) -- (state.west |- input4.east);
+        \draw[dashedarrow] (input5.east) -- (state.west |- input5.east);
         \draw[arrow] (state) -- (mlp);
         \draw[arrow] (mlp) -- (action);
     \end{tikzpicture}
-    \caption{RL State-Space Mapping. Raw sensor data is aggregated into a feature vector $S_t$ which feeds the compressed Neural Network policy.}
+    \caption{RL State-Space Mapping. Raw sensor data is aggregated into a feature vector $S_t$ which feeds the compressed MLP policy. Solid arrows indicate features in Variants A--B; the dashed arrow shows Variant C's spatial features. The deployed system uses Variant B (16D).}
     \label{fig:state_space}
 \end{figure}
 
-\subsection{Action Space}
-The agent chooses from discrete actions $A = \{0, 1, 2\}$:
+\subsubsection{Action Space}
+The agent chooses from a discrete action set $A = \{0, 1, 2\}$:
 \begin{enumerate}
     \setcounter{enumi}{-1}
-    \item \textbf{Maintain:} No change in target temperature.
-    \item \textbf{Heat:} Increase target temperature by $1^\circ$C.
-    \item \textbf{Cool:} Decrease target temperature by $1^\circ$C (Passive ventilation).
+    \item \textbf{Maintain (0):} No change in target temperature setpoint.
+    \item \textbf{Heat (1):} Increase the setpoint by $\Delta T = 1.0^\circ$C, activating the heating element.
+    \item \textbf{Cool (2):} Decrease the setpoint by $\Delta T = 1.0^\circ$C. Since only passive ventilation is available (no compressor), cooling is limited to reducing toward ambient temperature.
 \end{enumerate}
 
-\subsection{Reward Function}
-The reward $R_t$ is a composite signal designed to guide the agent towards the target ripeness $X_{target}$ by the deadline $t_{deadline}$:
-\begin{equation}
-    R_t = r_{\text{progress}} + r_{\text{tracking}} + c_{\text{safety}} + b_{\text{harvest}}
-\end{equation}
-\begin{itemize}
-    \item $r_{\text{progress}}$: Reward for reducing $X$.
-    \item $r_{\text{tracking}}$: Penalty for deviating from the ideal reference curve derived from the ODE.
-    \item $c_{\text{safety}}$: Large negative penalty if $T > 35^\circ$C.
-    \item $b_{\text{harvest}}$: One-time bonus for successfully harvesting within the target quality window.
-\end{itemize}
+Actions are \emph{incremental} rather than absolute setpoints, allowing the agent to make fine-grained adjustments and preventing sudden thermal shocks that could damage the fruit. A hardware safety layer independently clamps the temperature to the biological safe band $[12.5^\circ\text{C}, 35.0^\circ\text{C}]$, regardless of the agent's actions.
 
-\section{Policy Distillation for Edge Deployment}
-Training a deep RL agent requires significant compute. We employ a "Teacher-Student" distillation pipeline to compress the model for the ESP32-S3.
+\subsubsection{Reward Function}
+\label{subsec:reward}
+
+The reward signal $R_t$ is a composite of three terms designed to balance ripening quality, tracking accuracy, and safety:
+
+\begin{equation}
+    R_t = r_{\text{track}} + r_{\text{progress}} + c_{\text{safety}}
+    \label{eq:reward}
+\end{equation}
+
+\paragraph{Rate-Tracking Reward ($r_{\text{track}}$).}
+This term rewards the agent for matching the \emph{desired ripening velocity}, computed as the rate needed to reach the harvest threshold $X_{\text{target}} = 0.15$ by the deadline $t_{\text{target}}$:
+\begin{equation}
+    r_{\text{track}} = -\lambda \left| \dot{X}_{\text{daily}} - \frac{X_{\text{target}} - X}{\max(t_{\text{rem}}, \epsilon)} \right|
+    \label{eq:r_track}
+\end{equation}
+where $\lambda = 0.5$ is the tracking weight, $\dot{X}_{\text{daily}} = \dot{X} \times 24$ converts the hourly finite difference to a per-day rate, and $\epsilon = 0.1$ prevents singularity as $t_{\text{rem}} \to 0$. This formulation provides a \emph{time-varying} signal that becomes tighter as the deadline approaches.
+
+\paragraph{Progress Reward ($r_{\text{progress}}$).}
+A positive reinforcement signal for every unit of ripening progress:
+\begin{equation}
+    r_{\text{progress}} = \beta \cdot (X_{t-1} - X_t)
+    \label{eq:r_progress}
+\end{equation}
+where $\beta = 2.0$. This prevents the ``do-nothing'' pathology where the agent avoids acting to avoid potential negative rewards.
+
+\paragraph{Progressive Safety Penalty ($c_{\text{safety}}$).}
+Rather than a binary cliff penalty, safety violations incur a \emph{quadratic progressive} penalty that escalates with consecutive violations:
+\begin{equation}
+    c_{\text{safety}} = -\alpha \cdot \min(n, n_{\text{cap}})^2
+    \label{eq:c_safety}
+\end{equation}
+where $n$ is the count of consecutive timesteps with $T \notin [12.5, 35.0]^\circ$C, $\alpha = 2.0$, and $n_{\text{cap}} = 5$. This design allows brief excursions without catastrophic punishment while strongly penalizing sustained violations.
+
+\paragraph{Terminal Harvest Bonus.}
+Upon auto-harvest (when $X \leq X_{\text{target}}$), the agent receives a one-time bonus scaled by timing accuracy:
+\begin{equation}
+    b_{\text{harvest}} = B \cdot \left(1 - \frac{|t_{\text{rem}}|}{t_{\text{max}}}\right)
+    \label{eq:b_harvest}
+\end{equation}
+where $B = 10.0$ is the maximum bonus and $t_{\text{max}} = 7$ days. Harvesting exactly on time yields the full bonus; deviation reduces it proportionally.
+
+\subsubsection{Termination Conditions}
+Episodes terminate under three conditions:
+\begin{enumerate}
+    \item \textbf{Auto-harvest:} $X \leq 0.15$ (ripe threshold reached — bonus applied).
+    \item \textbf{Deadline:} $t_e \geq t_{\text{target}}$ (partial bonus based on achieved ripeness).
+    \item \textbf{Truncation:} $t_e \geq 7$ days (safety maximum — no bonus).
+\end{enumerate}
+
+\subsection{DQN Teacher Training}
+\label{subsec:dqn_training}
+
+The teacher policy is trained using a standard Deep Q-Network (DQN) \cite{mnih2015dqn} with experience replay and a target network. The architecture and hyperparameters are summarized in Table~\ref{tab:dqn_hyperparams}.
+
+\begin{table}[htbp]
+\caption{DQN Training Hyperparameters}
+\label{tab:dqn_hyperparams}
+\centering
+\begin{tabular}{@{}lr@{}}
+\toprule
+\textbf{Hyperparameter} & \textbf{Value} \\
+\midrule
+Architecture & MLP [256, 256] \\
+Training steps & 1{,}000{,}000 \\
+Learning rate & $3 \times 10^{-4}$ \\
+Replay buffer size & 100{,}000 \\
+Batch size & 256 \\
+Discount factor $\gamma$ & 0.99 \\
+Target network update $\tau$ & 0.005 \\
+Parallel environments & 4 \\
+Evaluation frequency & Every 10{,}000 steps \\
+Evaluation episodes & 20 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Training is performed using Stable Baselines3 \cite{sb3} with the Gymnasium API, running four parallel environments to improve sample efficiency. The teacher is trained on the default state-space Variant B (16D), which includes colour statistics.
+
+\subsection{Policy Distillation for Edge Deployment}
+\label{subsec:distillation}
+
+Training a deep RL agent requires significant compute. We employ a ``Teacher-Student'' distillation pipeline to compress the model for the ESP32-S3.
 
 \begin{enumerate}
-    \item \textbf{Teacher Training:} A large Deep Q-Network (DQN) with [256, 256] hidden layers is trained in the digital twin for 100,000 steps.
-    \item \textbf{Data Generation:} The trained Teacher generates a dataset of optimal state-action pairs $\{(s_i, q_i)\}$.
-    \item \textbf{Student Distillation:} A compact Multi-Layer Perceptron (MLP) with [64, 64] hidden layers is trained to minimize the KL-divergence between its output distribution and the Teacher's Q-values.
-    \item \textbf{Quantization:} The Student model is quantized to int8 precision using the ESP-PPQ toolchain to enable hardware-accelerated inference.
+    \item \textbf{Teacher Training:} A large Deep Q-Network (DQN) with $[256, 256]$ hidden layers is trained in the digital twin for $10^6$ steps.
+
+    \item \textbf{Data Generation:} The trained Teacher generates $N = 100{,}000$ state-action pairs by rolling out the learned policy in the simulator. For each state $s_i$, we record the full Q-value vector $\mathbf{q}_i \in \mathbb{R}^3$.
+
+    \item \textbf{Student Distillation:} A compact MLP with $[64, 64]$ hidden layers is trained to minimize a weighted combination of KL-divergence and MSE losses:
+    \begin{equation}
+        \mathcal{L} = \alpha_{\text{KL}} \cdot D_{\text{KL}}\!\left(\sigma(\mathbf{q}_i / \tau) \| \sigma(\hat{\mathbf{q}}_i / \tau)\right) + \alpha_{\text{MSE}} \cdot \|\mathbf{q}_i - \hat{\mathbf{q}}_i\|^2
+    \end{equation}
+    where $\sigma$ is softmax, $\tau = 3.0$ is the temperature, $\alpha_{\text{KL}} = 0.7$, and $\alpha_{\text{MSE}} = 0.3$.
+
+    \item \textbf{Deployment:} The student weights are exported as FP32 C constant arrays for direct compilation into the ESP32-S3 firmware.
 \end{enumerate}
 
-\section{Hardware Implementation}
-The physical system leverages the ESP32-S3 as the central controller.
-\subsection{Circuit Design}
-The power supply unit (PSU) delivers 12V to the heating element through an opto-isolated relay module. A buck converter steps down 12V to 5V for the microcontroller and sensors.
-\subsection{Enclosure}
-The chamber is constructed from 25mm extruded polystyrene (XPS) foam, ensuring thermal insulation. A 12V DC fan ensures air circulation to prevent hotspots.
+\begin{table}[htbp]
+\caption{Distillation Training Configuration}
+\label{tab:distill_config}
+\centering
+\begin{tabular}{@{}lr@{}}
+\toprule
+\textbf{Parameter} & \textbf{Value} \\
+\midrule
+Student architecture & MLP [64, 64] \\
+Training epochs & 100 \\
+Batch size & 512 \\
+Learning rate & $10^{-3}$ \\
+Softmax temperature $\tau$ & 3.0 \\
+KL loss weight $\alpha_{\text{KL}}$ & 0.7 \\
+MSE loss weight $\alpha_{\text{MSE}}$ & 0.3 \\
+Rollout samples & 100{,}000 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Hardware Implementation}
+The physical system leverages the ESP32-S3-CAM N16R8 as the central controller, chosen for its integrated camera interface, dual-core 240\,MHz processor, 512\,KB SRAM, 8\,MB PSRAM, and 16\,MB flash.
+
+\subsubsection{Circuit Design}
+The power supply unit (PSU) delivers 12V to the heating element through an opto-isolated relay module. A buck converter steps down 12V to 5V for the microcontroller and sensors. The relay is controlled via a GPIO pin with hardware debouncing on the control line.
+
+\subsubsection{Enclosure}
+The chamber is constructed from 25mm extruded polystyrene (XPS) foam, ensuring thermal insulation. A 12V DC fan ensures air circulation to prevent hotspots. The internal dimensions accommodate a single tomato with sufficient clearance for the camera's field of view.
+
+\subsubsection{Firmware Architecture}
+The ESP-IDF firmware is organized as five concurrent FreeRTOS tasks, as summarized in Table~\ref{tab:freertos_tasks}.
+
+\begin{table}[htbp]
+\caption{FreeRTOS Task Allocation}
+\label{tab:freertos_tasks}
+\centering
+\begin{tabular}{@{}llrr@{}}
+\toprule
+\textbf{Task} & \textbf{Role} & \textbf{Stack} & \textbf{Priority} \\
+\midrule
+Policy & MLP inference + control & 32\,KB & 5 \\
+Sensors & DHT22 readings & 8\,KB & 4 \\
+Camera & OV2640 capture & 16\,KB & 3 \\
+Vision & Image classification & 32\,KB & 3 \\
+Telemetry & JSON serial output & 16\,KB & 2 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The policy task runs at the highest priority to ensure deterministic inference timing. All tasks communicate through a shared state structure protected by a FreeRTOS mutex. The telemetry task outputs a structured JSON line per decision cycle, enabling integration with external dashboards.

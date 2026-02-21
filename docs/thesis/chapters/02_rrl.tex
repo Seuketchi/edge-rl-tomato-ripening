@@ -1,30 +1,30 @@
-\chapter{Review of Related Literature}
+\section{Review of Related Literature}
 \label{ch:rrl}
 
-\section{Post-Harvest Characteristics of Philippine Tomato Varieties}
+\subsection{Post-Harvest Characteristics of Philippine Tomato Varieties}
 Understanding the specific biological kinetics of local tomato cultivars is essential for calibrating the physics-based digital twin. In the Philippines, the market is dominated by two primary categories: commercial F1 hybrids and native cultivars.
 
-\subsection{Diamante Max F1}
+\subsubsection{Diamante Max F1}
 "Diamante Max" is widely favored by commercial growers in the Philippines due to its heat tolerance and high yield potential. However, studies indicate it is a highly perishable variety characterized by high moisture content ($\approx$95.31\%) and relatively thin skin \cite{diamante_properties}. Under ambient tropical conditions (23--34$^\circ$C), the fruit undergoes rapid physicochemical changes, with shelf life often limited to 14 days without intervention \cite{diamante_storage}.
 Physiologically, it exhibits a classic climacteric respiratory peak. Research by the Postharvest Horticulture Training and Research Center (PHTRC) at UPLB suggests that while storage at 7--10$^\circ$C significantly delays ripening, such low temperatures are energy-intensive and risk chilling injury. The optimal storage for quality retention is often cited at 13--15$^\circ$C \cite{uplb_phtrc}, aligning with the proposed system's target control range.
 
-\subsection{Native "Tagalog" Cultivars}
+\subsubsection{Native "Tagalog" Cultivars}
 Native cultivars, often referred to as "Kamatis Tagalog", are typically smaller, irregular in shape, and possess thinner pericarps compared to commercial hybrids. These varieties are highly valued for their sour flavor profile in traditional cuisine but suffer from even faster deterioration rates due to higher respiration and susceptibility to mechanical damage during transport \cite{native_tomato}. Their ripening kinetics ($k_1$) are generally higher than hybrids, requiring more aggressive cooling interventions to extend shelf life. This variability between "slow-ripening" hybrids and "fast-ripening" natives motivates the need for an adaptive control system (RL) rather than a fixed rule-based controller.
 
-\section{Reinforcement Learning in Controlled Environment Agriculture}
+\subsection{Reinforcement Learning in Controlled Environment Agriculture}
 Reinforcement Learning (RL) has emerged as a powerful tool for optimizing complex agricultural processes. Unlike Proportional-Integral-Derivative (PID) controllers which react to setpoint errors, RL agents can learn anticipatory strategies that optimize long-term rewards \cite{overweg2021cropgym}.
 
-\subsection{Climate Control and Irrigation}
+\subsubsection{Climate Control and Irrigation}
 Chen \textit{et al.} demonstrated the efficacy of Deep Q-Networks (DQN) for greenhouse climate control \cite{chen2022greenhouse}, reducing energy consumption while maintaining optimal growth conditions. Similarly, Yang \textit{et al.} applied RL to precision irrigation \cite{yang2020irrigation}, and Hemming \textit{et al.} explored AI sensors for cherry tomatoes \cite{hemming2020greenhouse}. While effective, these systems typically rely on cloud interfaces or heavy compute servers \cite{ray2017}, which introduces latency and connectivity risks ill-suited for rural deployment \cite{prasad2018}.
 
-\subsection{Post-Harvest Management}
+\subsubsection{Post-Harvest Management}
 Application of RL in post-harvest storage is less explored. Current systems largely rely on Model Predictive Control (MPC) or standard IoT monitoring \cite{li2021edgeai}. "Edge-RL" proposes shifting the computational burden to a one-time offline training phase, enabling the deployment of complex policies on resource-constrained devices like the ESP32.
 
-\section{Edge AI and Model Compression}
+\subsection{Edge AI and Model Compression}
 Deploying deep learning models on microcontrollers (TinyML) requires aggressive optimization to fit within strict memory ($<$500 KB SRAM) and compute constraints.
 
-\subsection{Knowledge Distillation}
+\subsubsection{Knowledge Distillation}
 Hinton \textit{et al.} introduced Knowledge Distillation, where a small "student" model is trained to mimic the soft outputs (logits) of a large "teacher" model \cite{hinton2015distilling}. In the context of RL, Policy Distillation \cite{ruffy2019distilling} allows a massive DQN (Teacher) to explore the environment and learn optimal Q-values, which are then compressed into a tiny MLP (Student) that creates a direct mapping from state to best action. This approach retains the "intelligence" of the large model while discarding parameters unnecessary for inference.
 
-\subsection{Quantization and ESP-DL}
+\subsubsection{Quantization and ESP-DL}
 Standard 32-bit floating-point (FP32) models are too large and slow for the ESP32-S3. Quantization to 8-bit integers (INT8) reduces model size by 4$\times$ and accelerates inference by utilizing SIMD instructions (e.g., Xtensa LX7 vector extensions). The ESP-DL library \cite{espdl2024} provides optimized INT8 kernels that outperform generic interpreters like TensorFlow Lite for Microcontrollers (TFLite Micro) on Espressif chips. By combining Policy Distillation with INT8 Quantization, it is possible to execute complex control policies in $<$10ms on-device.
