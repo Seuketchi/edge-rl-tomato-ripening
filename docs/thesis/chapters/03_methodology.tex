@@ -52,7 +52,7 @@ We model the ripening process using a first-order Ordinary Differential Equation
 
 where:
 \begin{itemize}
-    \item $k_1$: Cultivar-specific ripening rate constant (calibrated to $\approx 0.08$ day $^{-1} {^\circ}\text{C}^{-1}$ for Diamante Max).
+    \item $k_1$: Cultivar-specific ripening rate constant, calibrated to $0.02$\,day$^{-1}\,^\circ$C$^{-1}$ based on empirical ripening times of 10--14 days at 20--25$^\circ$C (Section~\ref{subsec:ripening_kinetics}).
     \item $T_{base}$: Base temperature below which ripening effectively stops ($12.5^\circ$C).
     \item $T$: Current chamber temperature ($^\circ$C).
 \end{itemize}
@@ -75,8 +75,8 @@ To ensure the RL policy generalizes beyond the nominal simulator parameters, the
 \toprule
 \textbf{Parameter} & \textbf{Distribution} & \textbf{Nominal} \\
 \midrule
-$k_1$ (ripening rate) & $\mathcal{U}(0.06, 0.10)$ & 0.08 \\
-$T_{amb}$ (ambient temp.) & $\mathcal{N}(27.0, 2.0)$ & 27.0$^\circ$C \\
+$k_1$ (ripening rate) & $\mathcal{U}(0.012, 0.028)$ & 0.02\,day$^{-1}\,^\circ$C$^{-1}$ \\
+$T_{amb}$ (ambient temp.) & $\mathcal{N}(27.0, 3.0)$ & 27.0$^\circ$C \\
 Initial $X_0$ & $\mathcal{U}(0.85, 0.95)$ & 0.90 \\
 Target harvest day & $\mathcal{U}(3.0, 7.0)$ & 5.0 days \\
 Temp. sensor noise & $\mathcal{N}(0, 0.5)$ & --- \\
@@ -85,7 +85,7 @@ Humidity sensor noise & $\mathcal{N}(0, 2.0)$ & --- \\
 \end{tabular}
 \end{table}
 
-The ambient temperature mean of 27.0$^\circ$C was chosen to reflect typical Philippine lowland conditions \cite{fao2019}. The ripening rate $k_1$ was varied $\pm 25\%$ around the nominal value to capture inter-cultivar variability between fast-ripening native varieties and slower commercial hybrids.
+The ambient temperature mean of 27.0$^\circ$C reflects the annual mean for Iligan City, Philippines, with a standard deviation of 3.0$^\circ$C to capture the diurnal cycle (nighttime $\sim$22$^\circ$C, daytime $\sim$31$^\circ$C) in an indoor environment without air conditioning. The ripening rate $k_1 = 0.02$\,day$^{-1}\,^\circ$C$^{-1}$ was calibrated from empirical data (Section~\ref{subsec:ripening_kinetics}), with domain randomization spanning $\pm 40\%$ to cover inter-cultivar variability between slow-ripening commercial hybrids (Diamante Max, $k_1 \approx 0.015$) and faster native varieties (Kamatis Tagalog, $k_1 \approx 0.028$).
 
 \subsection{Reinforcement Learning Formulation}
 The problem is formulated as an episodic Markov Decision Process (MDP), with the agent interacting with the digital twin at hourly intervals. We define the state space, action space, and reward function as follows.

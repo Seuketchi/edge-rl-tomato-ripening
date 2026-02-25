@@ -11,6 +11,55 @@ Physiologically, it exhibits a classic climacteric respiratory peak. Research by
 \subsubsection{Native "Tagalog" Cultivars}
 Native cultivars, often referred to as "Kamatis Tagalog", are typically smaller, irregular in shape, and possess thinner pericarps compared to commercial hybrids. These varieties are highly valued for their sour flavor profile in traditional cuisine but suffer from even faster deterioration rates due to higher respiration and susceptibility to mechanical damage during transport \cite{native_tomato}. Their ripening kinetics ($k_1$) are generally higher than hybrids, requiring more aggressive cooling interventions to extend shelf life. This variability between "slow-ripening" hybrids and "fast-ripening" natives motivates the need for an adaptive control system (RL) rather than a fixed rule-based controller.
 
+\subsection{Ripening Kinetics and Rate Constant Calibration}
+\label{subsec:ripening_kinetics}
+
+The digital twin at the core of this system requires a calibrated ripening rate constant $k_1$ to produce realistic training dynamics. The ODE governing the Continuous Chromatic Index (Eq.~\ref{eq:ode_ripening}) uses a first-order temperature-dependent decay model:
+\begin{equation*}
+    X(t) = X_0 \exp\!\left(-k_1 (T - T_{\text{base}}) \, t\right)
+\end{equation*}
+where $t$ is measured in days. Calibrating $k_1$ requires empirical data on how quickly tomatoes ripen at known temperatures.
+
+\subsubsection{Empirical Ripening Times}
+Ogundiwin \textit{et al.}~\cite{ogundiwin2022metachronous} measured the time from mature green to fully red for tomato cultivars stored at controlled temperatures. Table~\ref{tab:ripening_times} summarizes the key data points used for calibration.
+
+\begin{table}[htbp]
+\caption{Empirical Ripening Times: Mature Green to Fully Red}
+\label{tab:ripening_times}
+\centering
+\begin{tabular}{@{}cccc@{}}
+\toprule
+\textbf{Storage Temp.} & \textbf{Days to Red} & \textbf{Derived $k_1$} & \textbf{Source} \\
+\midrule
+15$^\circ$C & $\sim$21 & 0.044 & \cite{ogundiwin2022metachronous} \\
+20$^\circ$C & $\sim$14 & 0.022 & \cite{ogundiwin2022metachronous} \\
+25$^\circ$C & $\sim$10 & 0.018 & \cite{ogundiwin2022metachronous} \\
+30$^\circ$C & $\sim$14$^*$ & --- & \cite{ogundiwin2022metachronous} \\
+\bottomrule
+\end{tabular}
+\vspace{4pt}
+\raggedright\footnotesize{$^*$At 30$^\circ$C, lycopene biosynthesis is inhibited \cite{saltveit2005}, impairing red colour development. The extended time reflects colour impairment, not slower senescence.}
+\end{table}
+
+The derived $k_1$ values are computed by inverting the analytical solution: $k_1 = -\ln(X_{\text{ripe}}/X_0) \,/\, \bigl[(T - T_{\text{base}}) \cdot t_{\text{ripe}}\bigr]$, using $X_0 = 1.0$ and $X_{\text{ripe}} = 0.15$. The variation across temperatures (0.018--0.044) reflects the limitation of the linear $(T - T_{\text{base}})$ model, which approximates true Arrhenius kinetics. Within the practical operating range of 20--25$^\circ$C, the values converge around $k_1 \approx 0.02$\,day$^{-1}\,^\circ$C$^{-1}$.
+
+\subsubsection{Base Temperature}
+The UC Davis Postharvest Technology Center \cite{ucdavis_tomato} recommends 12.5$^\circ$C (55$^\circ$F) as the minimum temperature for safe postharvest ripening, consistent with Saltveit's reported range of 12.5--25$^\circ$C for acceptable ripening \cite{saltveit2005}. Below 10$^\circ$C, chilling injury prevents normal colour development and flavour compounds fail to accumulate. The value $T_{\text{base}} = 12.5^\circ$C is adopted as the threshold below which ripening effectively ceases.
+
+\subsubsection{Lycopene Synthesis Inhibition Above 25$^\circ$C}
+A well-documented limitation of tomato ripening is that lycopene biosynthesis---the primary driver of red pigmentation---is inhibited above approximately 25$^\circ$C \cite{saltveit2005}. At elevated temperatures (30--35$^\circ$C), the fruit continues to soften and senesce, but accumulates $\beta$-carotene (yellow-orange) rather than lycopene (red). This decoupling between softening and colour is not captured by the single-variable ODE used in this work.
+
+For the deployment environment (Iligan City, Philippines; indoor without air conditioning; ambient 22--31$^\circ$C), the chamber temperature regularly exceeds 25$^\circ$C during daytime hours. The Continuous Chromatic Index $X$ in this model is therefore best interpreted as a proxy for \emph{overall ripeness progression} (combining softening, colour change, and aroma development) rather than strictly red pigmentation. This simplification is acceptable for the harvest timing objective, where the decision is ``when to stop ripening,'' but future work could introduce a piecewise rate model to separately track colour and texture.
+
+\subsubsection{Calibrated Parameters for the Digital Twin}
+Based on the empirical data, the following calibrated values are used:
+\begin{itemize}
+    \item $k_1 = 0.02$\,day$^{-1}\,^\circ$C$^{-1}$ (nominal), matching 10--14 day ripening at 20--25$^\circ$C.
+    \item $k_1$ variation: $\pm 0.008$ (domain randomization), covering both slow-ripening commercial hybrids (Diamante Max, $k_1 \approx 0.015$) and faster native cultivars (Kamatis Tagalog, $k_1 \approx 0.028$).
+    \item $T_{\text{base}} = 12.5^\circ$C, per UC Davis and Saltveit (2005).
+    \item $T_{\text{amb}} = 27.0 \pm 3.0^\circ$C, reflecting the diurnal temperature cycle in Iligan City (nighttime $\sim$22$^\circ$C, daytime $\sim$31$^\circ$C).
+\end{itemize}
+
 \subsection{Reinforcement Learning in Controlled Environment Agriculture}
 Reinforcement Learning (RL) has emerged as a powerful tool for optimizing complex agricultural processes. Unlike Proportional-Integral-Derivative (PID) controllers which react to setpoint errors, RL agents can learn anticipatory strategies that optimize long-term rewards \cite{overweg2021cropgym}.
 

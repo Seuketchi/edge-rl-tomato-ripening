@@ -262,7 +262,7 @@ def fig_tracking(model, config, out_dir: Path):
     # Reference curve: exponential decay matching the ODE physics
     # X_ref(t) = X0 * exp(-k1 * (T_mean - T_base) * t)
     x0 = data["ripe"][0]
-    k1 = config.get("rl", {}).get("simulator", {}).get("k1", 0.08)
+    k1 = config.get("rl", {}).get("simulator", {}).get("k1", 0.02)
     t_base = config.get("rl", {}).get("simulator", {}).get("t_base", 12.5)
     t_mean = np.mean(data["temp"])   # use actual mean temperature
     x_ref = x0 * np.exp(-k1 * (t_mean - t_base) * days)

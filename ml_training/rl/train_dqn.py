@@ -272,6 +272,7 @@ def main() -> None:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_dir = Path(config.get("project", {}).get("output_dir", "outputs")) / f"rl_{timestamp}"
     output_dir.mkdir(parents=True, exist_ok=True)
+    tb_log_dir = output_dir / "tensorboard"
 
     # Save config
     with open(output_dir / "config.yaml", "w") as f:
@@ -314,10 +315,12 @@ def main() -> None:
         verbose=1,
         seed=seed,
         device="auto",
+        tensorboard_log=str(tb_log_dir),
     )
 
     print(f"  Policy arch: {hidden_sizes}")
     print(f"  Total timesteps: {total_timesteps:,}")
+    print(f"  TensorBoard log: {tb_log_dir}")
 
     # Callbacks
     metrics_cb = MetricsCallback()
@@ -379,6 +382,7 @@ def main() -> None:
     plot_comparison(results, output_dir)
 
     print(f"\n✅ RL training complete. All artifacts saved to {output_dir}/")
+    print(f"   View TensorBoard: tensorboard --logdir {tb_log_dir}")
 
 
 if __name__ == "__main__":

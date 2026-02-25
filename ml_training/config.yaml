@@ -93,14 +93,14 @@ rl:
 
   # Simulator physics (ROYG convention: X=1 Green, X=0 Red)
   simulator:
-    k1: 0.08                      # Ripening rate constant
-    t_base: 12.5                  # Base temperature (°C)
+    k1: 0.02                      # Ripening rate constant (day⁻¹ °C⁻¹), calibrated from Ogundiwin et al. (2022)
+    t_base: 12.5                  # Base temperature (°C), per UC Davis & Saltveit (2005)
     x_min: 0.0                    # Minimum chromatic index (fully ripe)
     temp_noise_std: 0.5           # Temperature sensor noise
     humidity_noise_std: 2.0       # Humidity sensor noise
     delta_t_step: 1.0             # Incremental temp change per action (°C)
-    ambient_temp_mean: 27.0       # Mean ambient temperature (°C) — Philippines climate
-    ambient_temp_std: 2.0         # Ambient variation (diurnal + stochastic)
+    ambient_temp_mean: 27.0       # Mean ambient temperature (°C) — Iligan City annual mean
+    ambient_temp_std: 3.0         # Ambient variation — diurnal cycle (22–31°C), indoor no AC
 
   # DQN Training (3-action: maintain / heat / cool)
   training:

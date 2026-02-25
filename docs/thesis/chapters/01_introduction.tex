@@ -34,14 +34,41 @@ By developing a low-cost, intelligent ripening chamber, this research directly b
 \end{itemize}
 
 \subsection{Scope and Limitations}
-The scope of this thesis is defined by the following boundaries:
 
-\begin{itemize}
-    \item \textbf{Single-Fruit Focus:} The system acts on a single tomato unit within the chamber to isolate specific ripening kinetics. Batch effects (e.g., ethylene signaling between multiple fruits) are not modeled.
-    \item \textbf{Heater-Only Actuation:} The control mechanism is limited to a heating element (raising temperature above ambient) and passive ventilation (cooling to ambient). No active refrigeration (compressor/Peltier) is used, constraining the controllable temperature range to $T_{ambient} \le T_{chamber} \le 35^\circ$C.
-    \item \textbf{Target Crop:} The system is calibrated for Philippine tomato varieties, specifically focusing on the kinetics of "Diamante Max" and "Kamatis Tagalog".
-    \item \textbf{Deployment Environment:} The system is designed for offline operation; all inference and control logic execute locally on the ESP32-S3.
-\end{itemize}
+\subsubsection{Scope}
+This thesis encompasses the complete pipeline from simulation-based RL training to on-device inference on embedded hardware. The following boundaries define the system's scope:
+
+\begin{enumerate}
+    \item \textbf{Single-Fruit Focus:} The system monitors and controls the ripening of a single tomato unit within an enclosed chamber. This isolates the ripening kinetics of one fruit and avoids the complexity of batch effects such as inter-fruit ethylene signaling.
+
+    \item \textbf{Heater-Only Actuation:} The control mechanism is limited to a resistive heating element (raising temperature above ambient) and passive ventilation (cooling toward ambient). No active refrigeration (compressor or Peltier element) is used, constraining the controllable temperature range to $T_{\text{ambient}} \le T_{\text{chamber}} \le 35^\circ$C.
+
+    \item \textbf{Target Crop:} The ripening model is calibrated for Philippine tomato varieties, specifically the commercial hybrid ``Diamante Max F1'' and native ``Kamatis Tagalog.'' The ripening rate constant $k_1$ is parameterized to reflect the kinetics of these cultivars.
+
+    \item \textbf{Offline Edge Deployment:} All inference and control logic execute locally on the ESP32-S3 microcontroller. No cloud connectivity is required during operation; the system is designed for rural areas without reliable internet access.
+
+    \item \textbf{Sim-to-Edge Pipeline:} The study validates the complete pipeline from Gymnasium-based environment simulation, through DQN teacher training and student distillation, to pure-C inference on the Xtensa LX7 core.
+
+    \item \textbf{State-Space Ablation:} Three observation variants are evaluated (7D scalar, 16D with RGB statistics, 20D with spatial pooling) to determine the optimal state representation for edge deployment.
+\end{enumerate}
+
+\subsubsection{Limitations}
+The following limitations constrain the generalizability and completeness of the current work:
+
+\begin{enumerate}
+    \item \textbf{Simulation-Only Training:} The RL policy is trained entirely in a physics-based digital twin. While domain randomization is applied to improve robustness, the policy has not been validated against real physical tomatoes in a closed-loop setting.
+
+    \item \textbf{Simulated Colour Statistics:} The RGB colour statistics (mean, standard deviation, mode) used in Variant B and C are generated synthetically by the simulator. Real camera-derived statistics may exhibit different noise characteristics, lens distortion, and lighting dependencies.
+
+    \item \textbf{No Active Cooling:} The absence of a compressor or Peltier module means the system cannot cool below ambient temperature. In tropical climates where $T_{\text{ambient}}$ may exceed 30$^\circ$C, the agent's ability to slow ripening is fundamentally limited to the MAINTAIN action.
+
+    \item \textbf{No Ethylene Sensing:} The system does not incorporate ethylene gas sensors, which provide a direct biochemical indicator of climacteric ripening onset. Ripeness estimation relies solely on visual (RGB) and environmental (temperature, humidity) features.
+
+    \item \textbf{Fixed Policy Architecture:} The student MLP architecture (64$\times$64, ReLU) is fixed at compile time. On-device fine-tuning or continual learning is not supported in the current firmware; the policy is static after deployment.
+
+    \item \textbf{Single-Cultivar ODE:} The ripening ODE uses a single $k_1$ constant per episode. Real-world cultivar variability within a batch is not captured, and the model does not account for fruit maturity at harvest or mechanical damage.
+\end{enumerate}
+
 
 \subsection{Definition of Terms}
 \begin{description}

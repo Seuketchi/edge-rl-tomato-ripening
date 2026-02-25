@@ -34,19 +34,19 @@ import numpy as np
 @dataclass
 class SimulatorConfig:
     """Configuration for the ripening simulator."""
-    k1: float = 0.08                # Ripening rate constant
-    t_base: float = 12.5            # Base temperature (°C)
+    k1: float = 0.02                # Ripening rate constant (day⁻¹ °C⁻¹), calibrated from Ogundiwin et al. (2022)
+    t_base: float = 12.5            # Base temperature (°C), per UC Davis & Saltveit (2005)
     x_min: float = 0.0              # Minimum chromatic index (fully ripe / Red)
     temp_noise_std: float = 0.5     # Temperature sensor noise (°C)
     humidity_noise_std: float = 2.0  # Humidity sensor noise (%)
-    k1_variation: float = 0.02      # Per-episode k1 randomization range
+    k1_variation: float = 0.008     # Per-episode k1 randomization range (±40% of nominal)
     initial_ripeness_range: tuple[float, float] = (0.6, 1.0)  # Green-ish start
-    initial_temp_range: tuple[float, float] = (25.0, 30.0)  # At/above ambient (Philippines)
+    initial_temp_range: tuple[float, float] = (25.0, 31.0)  # Iligan City daytime range
     initial_humidity_range: tuple[float, float] = (65.0, 85.0)
     delta_t_step: float = 1.0       # Incremental temperature change per action (°C)
     # Ambient environment (heater-only system: cannot cool below ambient)
-    ambient_temp_mean: float = 27.0  # Mean ambient temperature (°C) — Philippines climate
-    ambient_temp_std: float = 2.0    # Ambient variation std (diurnal cycle + noise)
+    ambient_temp_mean: float = 27.0  # Mean ambient temperature (°C) — Iligan City annual mean
+    ambient_temp_std: float = 3.0    # Ambient variation std (diurnal 22–31°C, indoor no AC)
     # Max-pool simulation: spatial heterogeneity parameters
     spatial_grid_size: int = 4      # NxN grid for spatial pixel simulation
     spatial_std: float = 0.06       # Std of per-patch chromatic variation

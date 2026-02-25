@@ -102,7 +102,7 @@ class TomatoRipeningEnv(gym.Env):
         # Create simulator
         self.rng = np.random.default_rng(seed)
         sim_config = SimulatorConfig(
-            k1=sim_cfg.get("k1", 0.08),
+            k1=sim_cfg.get("k1", 0.02),
             t_base=sim_cfg.get("t_base", 12.5),
             x_min=sim_cfg.get("x_min", 0.0),
             temp_noise_std=sim_cfg.get("temp_noise_std", 0.5),
