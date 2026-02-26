@@ -1,0 +1,89 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% APPENDIX
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\appendix
+\phantomsection
+\addcontentsline{toc}{chapter}{APPENDICES}
+
+\chapter{Additional Technical Documentation}
+    \label{ch:Appendix}
+
+\section{Bill of Materials}
+    \label{sec:BOM}
+
+    Table \ref{tab:bom} presents the complete bill of materials for the Edge-RL ripening chamber prototype.
+
+    \begin{table}[ht]
+        \caption{Bill of materials for the Edge-RL ripening chamber. Total cost is below the \$50 target, making the system accessible to smallholder farmers.}
+        \label{tab:bom}
+        \centering
+        \begin{tabular}{llr}
+            \hline
+            \textbf{Component} & \textbf{Specification} & \textbf{Cost (USD)} \\
+            \hline
+            ESP32-S3-CAM N16R8 & Dual-core 240~MHz, 16~MB flash, 8~MB PSRAM & \$10.00 \\
+            OV2640 Camera Module & 2MP, 1600$\times$1200, SCCB bus & Included \\
+            DHT22 Sensor & Temp: $\pm$0.5$^{\circ}$C, RH: $\pm$2\% & \$3.00 \\
+            12V Heating Element & PTC ceramic, 50W & \$5.00 \\
+            Relay Module & 5V, opto-isolated, 10A & \$2.00 \\
+            12V DC Fan & 40$\times$40~mm, 5000~RPM & \$2.00 \\
+            Buck Converter & 12V$\to$5V, 3A & \$1.50 \\
+            XPS Foam Enclosure & 25~mm, pre-cut panels & \$5.00 \\
+            Power Supply & 12V 5A adapter & \$4.50 \\
+            \hline
+            \textbf{Total} & & \textbf{\$33.00} \\
+            \hline
+        \end{tabular}
+    \end{table}
+
+\section{DQN Training Convergence}
+    \label{sec:Training Convergence}
+
+    % Placeholder for training convergence plot
+    % \begin{figure}[ht]
+    %     \centering
+    %     \includegraphics[width=0.8\textwidth]{training_convergence.png}
+    %     \caption{DQN training convergence over 1,000,000 timesteps showing episode reward (blue, smoothed) and evaluation reward (orange). The policy converges after approximately 600,000 timesteps.}
+    %     \label{fig:training_convergence}
+    % \end{figure}
+
+\section{Distillation Training Convergence}
+    \label{sec:Distillation Convergence}
+
+    % Placeholder for distillation convergence plot
+    % \begin{figure}[ht]
+    %     \centering
+    %     \includegraphics[width=0.8\textwidth]{distillation_curves.png}
+    %     \caption{Student model distillation convergence showing KL-divergence loss (blue), MSE loss (orange), and combined loss (green) over 100 training epochs.}
+    %     \label{fig:distillation_convergence}
+    % \end{figure}
+
+\section{Firmware Source Code}
+    \label{sec:Firmware Source}
+
+    The complete firmware source code for the Edge-RL system is publicly available at:
+
+    \begin{center}
+        \url{https://github.com/Seuketchi/edge-rl-tomato-ripening}
+    \end{center}
+
+    Key source files include:
+    \begin{itemize}
+        \item \texttt{app\_main.c}: FreeRTOS task initialization and scheduling
+        \item \texttt{policy\_weights.h}: Exported MLP weights (5,443 parameters)
+        \item \texttt{golden\_vectors.h}: 20 verification state-action pairs
+        \item \texttt{shared\_state.h}: Inter-task communication structure
+        \item \texttt{app\_config.h}: System configuration parameters
+    \end{itemize}
+
+\section{Simulation Environment Source Code}
+
+    The digital twin simulator and RL training pipeline are implemented in Python using:
+    \begin{itemize}
+        \item \texttt{simulator.py}: Gymnasium-compatible ripening environment with ODE solver
+        \item \texttt{train\_dqn.py}: DQN teacher training script using Stable Baselines3
+        \item \texttt{distill.py}: Teacher-student knowledge distillation pipeline
+        \item \texttt{export\_policy\_c.py}: PyTorch-to-C weight export with golden vector generation
+        \item \texttt{run\_evaluation.py}: Baseline comparison evaluation harness
+    \end{itemize}

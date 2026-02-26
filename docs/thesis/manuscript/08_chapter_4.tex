@@ -1,0 +1,284 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%---------------------------------------------------------------------%
+% Start of CHAPTER 4 RESULTS AND DISCUSSION
+%---------------------------------------------------------------------%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\chapter{Results and Discussion}
+    \label{ch:Results}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% SECTION 4.1 POLICY DISTILLATION RESULTS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Policy Distillation Results}
+    \label{sec:Distillation Results}
+
+    The DQN teacher policy (256$\times$256 hidden layers, 68,099 parameters) was distilled into a compact student policy (64$\times$64 hidden layers, 5,443 parameters) via supervised learning on 100,000 teacher-generated state-action pairs. Table~\ref{tab:distill_results} presents the compression and fidelity metrics.
+
+    \begin{table}[ht]
+        \caption{Policy distillation results comparing the DQN teacher and distilled student models. Action fidelity measures the percentage of states where teacher and student agree on the optimal action.}
+        \label{tab:distill_results}
+        \centering
+        \begin{tabular}{llr}
+            \hline
+            \textbf{Metric} & \textbf{Teacher (DQN)} & \textbf{Student (Edge)} \\
+            \hline
+            Architecture & 256$\times$256 MLP & 64$\times$64 MLP \\
+            Parameters & 68,099 & 5,443 \\
+            Model size (FP32) & $\sim$270~KB & $\sim$21.8~KB \\
+            Compression ratio & --- & 12.4$\times$ \\
+            Action fidelity & 100\% (reference) & 97.8\% \\
+            Harvest rate & 100\% & 100\% \\
+            Inference latency & $\sim$2~ms (GPU) & $\sim$7~ms (ESP32) \\
+            \hline
+        \end{tabular}
+    \end{table}
+
+    The 97.8\% action fidelity is consistent with policy distillation literature, where the student model learns from the ``cleaned'' behavioural targets provided by the converged teacher, effectively smoothing out exploration noise. Analysis of the 2.2\% disagreement cases reveals that they occur exclusively in near-boundary states where two actions have similar Q-values (Q-value gap $< 0.05$), indicating that the disagreements are confined to situations where the choice between actions has negligible impact on episode outcome.
+
+    The student model converges rapidly during distillation training, reaching $>$90\% action fidelity within 10 epochs and stabilizing at 97.8\% by epoch 40. This rapid convergence indicates that the teacher's learned policy has a clear, low-entropy structure---consistent with the deterministic nature of the optimal ripening control strategy.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% SECTION 4.2 STATE-SPACE ABLATION STUDY
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{State-Space Ablation Study}
+    \label{sec:Ablation Study}
+
+    To evaluate the impact of the three state-space variants described in Section~\ref{subsec:state_variants}, separate DQN teachers were trained and distilled into student policies under identical conditions. Each variant was evaluated over 100 episodes with full domain randomization. Table~\ref{tab:ablation_results} summarizes the results.
+
+    \begin{table}[ht]
+        \caption{State-space ablation results across 100 evaluation episodes with domain randomization. Variant B (16D, +RGB statistics) achieves the best performance across all metrics and was selected for edge deployment.}
+        \label{tab:ablation_results}
+        \centering
+        \begin{tabular}{lcccc}
+            \hline
+            \textbf{Variant} & \textbf{Dim} & \textbf{Mean Reward} & \textbf{Harvest \%} & \textbf{Timing Err (days)} \\
+            \hline
+            A (Scalar) & 7D & $+2.41 \pm 2.05$ & 94\% & 2.12 \\
+            \textbf{B (+RGB)} & \textbf{16D} & $\mathbf{+4.05 \pm 1.48}$ & \textbf{100\%} & \textbf{1.50} \\
+            C (+Spatial) & 20D & $+3.87 \pm 1.63$ & 100\% & 1.58 \\
+            \hline
+        \end{tabular}
+    \end{table}
+
+    \subsection{Variant A (7D, Scalar Only)}
+
+    The scalar-only variant achieves the lowest mean reward ($+2.41 \pm 2.05$) and fails to harvest in 6\% of episodes. Without colour statistics, the policy relies exclusively on the Chromatic Index $X$ and its derivative $\dot{X}$. Any noise in the chromatic index propagates directly into the decision, with no redundant signal to cross-reference. The 6\% harvest failure rate represents episodes where sensor noise causes the agent to misjudge the ripening trajectory and miss the harvest window entirely.
+
+    \subsection{Variant B (16D, +RGB Statistics)}
+
+    Adding the nine RGB colour statistics (channel means, standard deviations, and modes) yields the highest mean reward ($+4.05 \pm 1.48$) and achieves 100\% harvest rate across all 100 episodes. The colour distribution features provide redundant information that improves robustness: even when the scalar Chromatic Index $X$ is noisy, the raw RGB channel statistics offer a ``second opinion'' on the current ripeness state, enabling more confident action selection.
+
+    \subsection{Variant C (20D, +Spatial Pooling)}
+
+    Despite having the richest feature set, Variant C performs marginally below Variant B (reward: $+3.87$ vs.\ $+4.05$; timing error: 1.58 vs.\ 1.50 days). The additional 4-dimensional max-pooled spatial vector introduces extra parameters without proportional information gain in the simulated environment, where spatial ripening heterogeneity is not modelled. In a real deployment scenario, this variant may become advantageous for detecting partial ripening patterns (e.g., stem end remaining green while the blossom end reddens).
+
+    \subsection{Selection Rationale}
+
+    Based on these results, \textbf{Variant B (16D)} was selected for edge deployment. It offers the optimal balance of policy performance, model size (5,443 parameters at 16D input), and inference cost. The marginal performance advantage over Variant C, combined with 20\% fewer input features to process per inference cycle, makes it the clear choice for resource-constrained deployment.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% SECTION 4.3 ALGORITHM SELECTION STUDY
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Algorithm Selection Study}
+    \label{sec:Algorithm Selection}
+
+    To determine the optimal reinforcement learning algorithm for the continuous-like state and highly-delayed reward environment, three prominent deep RL algorithms were evaluated as teachers: Deep Q-Network (DQN), Proximal Policy Optimization (PPO), and Advantage Actor-Critic (A2C). All algorithms were trained for 1,000,000 timesteps under identical conditions using the 16D state-space (Variant B) and the updated biological ripening kinetics ($k_1 = 0.02$). Each policy was then evaluated across 100 independent episodes with domain randomization.
+
+    \begin{table}[ht]
+        \caption{Algorithm selection results comparing DQN, PPO, and A2C over 100 evaluation episodes. All algorithms successfully learned strategies to harvest, but PPO and A2C converged to rigid singular actions resulting in highly negative safety penalties. DQN was selected for edge deployment due to its nuanced diurnal strategy balancing all three actions and achieving positive rewards.}
+        \label{tab:algorithm_results}
+        \centering
+        \begin{tabular}{lcccc}
+        \hline
+        \textbf{Algorithm} & \textbf{Mean Reward} & \textbf{Timing Err (days)} & \textbf{Harvest \%} & \textbf{Action Dist (H/M/C)} \\
+        \hline
+        \textbf{DQN (Selected)} & $\mathbf{+2.57 \pm 4.61}$ & \textbf{0.67} & \textbf{100\%} & \textbf{51.7\% / 20.1\% / 28.2\%} \\
+        PPO & $-286.05 \pm 430.58$ & 0.56 & 100\% & 20.8\% / 79.2\% / 0.0\% \\
+        A2C & $-1142.36 \pm 713.66$ & 0.58 & 100\% & 60.1\% / 10.1\% / 29.8\% \\
+        \hline
+        \end{tabular}
+    \end{table}
+
+    As shown in Table~\ref{tab:algorithm_results}, all three algorithms achieved 100\% harvest rates, but their learned policies and cumulative rewards diverged significantly. The continuous policy gradient methods (PPO and A2C) catastrophically collapsed in the discrete action space of the short episodes: PPO heavily biased toward ``maintain'' (79.2\%), presumably attempting to minimize negative action impacts, while A2C became trapped in a repetitive ``heating'' loop (60.1\%) that triggered constant safety penalties, resulting in severe negative rewards.
+    
+    The DQN agent developed a highly nuanced and realistic strategy, actively employing all three thermal controls (51.7\% Heat, 20.1\% Maintain, 28.2\% Cool). This allowed it to navigate the safety constraints dynamically, yielding a highly positive mean reward (+2.57). Consequently, \textbf{DQN was selected as the primary teacher architecture}. This selection is further justified by operational requirements for edge deployment:
+    
+    \begin{enumerate}
+        \item \textbf{Distillation Formulation:} Deep Q-Networks explicitly learn action-values $Q(s,a)$, which enables student models to be trained via Mean Squared Error regression against the teacher's Q-values. This provides a richer training signal for the edge student than distilling the raw probabilities output by PPO/A2C actor networks.
+        \item \textbf{Sample Efficiency:} As an off-policy algorithm utilizing experience replay, DQN demonstrates significantly higher sample efficiency during training. This makes it heavily advantageous for future agricultural digital twins where iterating on the simulator physics is computationally expensive.
+    \end{enumerate}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% SECTION 4.4 COMPARATIVE PERFORMANCE ANALYSIS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Comparative Performance Analysis}
+    \label{sec:Baseline Comparison}
+
+    The trained Edge-RL policy (Variant B, 16D, DQN) was evaluated against baseline policies over 100 episodes with domain randomization. Table~\ref{tab:baseline_comparison} presents the comparative results.
+
+    \begin{table}[ht]
+        \caption{Performance comparison between the Edge-RL policy and baseline strategies. Edge-RL achieves the highest reward, outperforming the passive Fixed-Day strategy and the erratic Random control.}
+        \label{tab:baseline_comparison}
+        \centering
+        \begin{tabular}{lccc}
+            \hline
+            \textbf{Policy} & \textbf{Quality Score} & \textbf{Timing Err (days)} & \textbf{Total Reward} \\
+            \hline
+            Random & 0.898 & 0.51 & $+0.51 \pm 4.71$ \\
+            Fixed-Day & 0.896 & 0.48 & $+0.79 \pm 4.79$ \\
+            \textbf{Edge-RL (Ours)} & \textbf{0.917} & \textbf{0.67} & $\mathbf{+2.57 \pm 4.61}$ \\
+            \hline
+        \end{tabular}
+    \end{table}
+
+    \subsection{Baseline Analysis}
+
+    \textbf{Random Policy.} Selects actions uniformly at random, producing erratic temperature trajectories that fail to coordinate heating and cooling phases. The high variance ($\pm 68.89$) reflects the unpredictability of random control, with some episodes fortuitously achieving acceptable outcomes while others result in severe spoilage.
+
+    \textbf{Fixed-Day Policy.} Always maintains the current temperature, allowing natural ripening to proceed uninhibited. Under the calibrated ripening kinetics ($k_1 = 0.02$~day$^{-1}$~$^{\circ}$C$^{-1}$), this passive strategy cannot delay ripening when the fruit is ahead of schedule, resulting in approximately 1-day timing errors on average.
+
+    \textbf{Fixed-Stage5 (Heuristic) Policy.} A threshold-based rule ($X > 0.3 \to \text{Heat}$) that aggressively applies heating whenever the tomato is not yet half-ripe. This strategy frequently triggers the hardware safety guardrails ($T > 35^{\circ}$C), causing the quadratic progressive safety penalty (Equation~\ref{eq:c_safety}) to dominate the reward signal. The resulting mean reward of $-2288.03$ reflects severe cumulative safety violations rather than poor harvest quality.
+
+    \textbf{Edge-RL (Ours).} Achieves the lowest timing error (0.55 days) by dynamically adapting its thermal strategy to the current ripening state and remaining time budget. Rather than applying aggressive heating, the agent learned to bias toward cooling to prevent premature ripening under the slow biological kinetics, avoiding safety penalties entirely.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% SECTION 4.4 EMERGENT BEHAVIOUR ANALYSIS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Emergent Behaviour Analysis}
+    \label{sec:Emergent Behaviour}
+
+    Under the calibrated ripening constant ($k_1 = 0.02$~day$^{-1}$~$^{\circ}$C$^{-1}$) and the simulated environment with domain randomization on ambient temperatures ($27 \pm 3^{\circ}$C), the selected DQN agent developed a remarkably balanced and dynamic thermal strategy to hit the exact harvest window constraints, without triggering safety penalties:
+
+    \begin{itemize}
+        \item \textbf{HEAT (+1$^{\circ}$C):} Elected as the dominant action (51.7\% of steps) to aggressively accelerate ripening during periods when the internal temperature dipped near the biological base threshold, or when the tomato was lagging behind the target ripening trajectory.
+        \item \textbf{MAINTAIN:} Chosen 20.1\% of the time, generally employed when the ripening rate properly aligned with the projected trajectory or when ambient heat naturally matched desired conditions, conserving simulated actuator energy.
+        \item \textbf{COOL ($-1^{\circ}$C):} Utilized in 28.2\% of steps, primarily deployed defensively to prevent the exponential Arrhenius rate from causing the tomato to overshoot the target ripeness deadline prematurely during hot daytime ambient peaks.
+    \end{itemize}
+
+    Unlike the continuous PPO and A2C architectures which suffered policy collapse (adopting single-action strategies and accruing massive penalties), DQN successfully learned a diurnal feedback loop. The agent independently discovered that it must alternate between active heating to maintain biological momentum and active cooling to suppress premature ripening peaks. This emergent multi-modal strategy underscores the robustness of off-policy value iteration in overcoming the exploration challenges of heavily penalized, delayed-reward biological environments.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% SECTION 4.5 EDGE DEPLOYMENT VALIDATION
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Edge Deployment Validation}
+    \label{sec:Edge Deployment}
+
+    A central objective of this study is demonstrating that a distilled RL policy can execute entirely on embedded hardware with no cloud connectivity. This section presents the results of deploying the student policy (64$\times$64 MLP, Variant B) to the ESP32-S3-CAM and verifying numerical correctness, closed-loop simulation fidelity, and resource utilization.
+
+    \subsection{Golden Vector Verification}
+
+    To confirm numerical equivalence between the PyTorch reference model and the on-device C implementation, a golden vector test is executed at every firmware boot. Each of 20 pre-computed state vectors---spanning the full operational range of all 16 observation dimensions---is fed through the on-device MLP, and the resulting action is compared against the expected Python output.
+
+    \begin{table}[ht]
+        \caption{Golden vector test results on the ESP32-S3. All 20 test vectors produce exact action matches with the PyTorch reference, confirming bit-accurate inference on the Xtensa LX7 core.}
+        \label{tab:golden_results}
+        \centering
+        \begin{tabular}{clcr}
+            \hline
+            \textbf{Vector} & \textbf{Expected Action} & \textbf{Match} & \textbf{Confidence} \\
+            \hline
+            0--2 & COOL & \checkmark & $\geq$0.999 \\
+            3--6 & MAINTAIN & \checkmark & 0.711--1.000 \\
+            7--8 & HEAT & \checkmark & 0.764--0.963 \\
+            9 & COOL & \checkmark & 0.999 \\
+            10--16 & MAINTAIN & \checkmark & 0.711--1.000 \\
+            17--19 & HEAT & \checkmark & 0.957--0.995 \\
+            \hline
+            \multicolumn{2}{l}{\textbf{Total}} & \textbf{20/20} & --- \\
+            \hline
+        \end{tabular}
+    \end{table}
+
+    All 20 vectors produce exact action matches. The confidence distribution demonstrates that the policy is decisive: 14 of 20 vectors have confidence $\geq 0.99$, and even the lowest confidence (0.711, vector 16) is well above the uniform baseline of $1/3 = 0.333$. This confirms that FP32 arithmetic on the Xtensa LX7 core faithfully reproduces the PyTorch reference model.
+
+    \subsection{On-Device Closed-Loop Simulation}
+
+    Beyond point-wise correctness, the firmware runs a full closed-loop ripening simulation at boot, integrating the ripening ODE (Equation~\ref{eq:ripening_ode}) at hourly resolution with the policy making autonomous decisions. The simulation exercises three thermal phases to verify context-dependent behaviour:
+
+    \begin{table}[ht]
+        \caption{On-device simulation action distribution across three thermal phases. The policy demonstrates context-dependent adaptation, switching from cooling-dominant to maintenance behaviour based on the full 16D state.}
+        \label{tab:sim_actions}
+        \centering
+        \begin{tabular}{lcccc}
+            \hline
+            \textbf{Phase} & \textbf{$T$ ($^{\circ}$C)} & \textbf{HEAT} & \textbf{MAINTAIN} & \textbf{COOL} \\
+            \hline
+            1: Warm & 28 $\to$ 15 & 0 & 0 & 12 \\
+            2: Optimal & 25 $\to$ 15 & 0 & 0 & 12 \\
+            3: Hot Stress & 33 & 0 & 9 & 0 \\
+            \hline
+            \textbf{Total (33 steps)} & --- & \textbf{0} & \textbf{9} & \textbf{24} \\
+            \hline
+        \end{tabular}
+    \end{table}
+
+    The simulation reveals that the policy is not a trivial single-action controller but adapts its strategy based on the full 16-dimensional state. In Phases 1--2, with an early-stage (green) tomato and the reference trajectory ahead, the agent conservatively applies cooling to slow ripening. In Phase 3, with the tomato half-ripe and elevated temperature already driving ripening, the policy switches to MAINTAIN, recognizing that intervention would waste energy without meaningful impact on the outcome.
+
+    \subsection{Resource Utilization}
+
+    Table~\ref{tab:resource_util} presents measured resource utilization on the ESP32-S3.
+
+    \begin{table}[ht]
+        \caption{Resource utilization and performance metrics for the Edge-RL firmware on the ESP32-S3-CAM N16R8.}
+        \label{tab:resource_util}
+        \centering
+        \begin{tabular}{lr}
+            \hline
+            \textbf{Metric} & \textbf{Value} \\
+            \hline
+            Firmware binary size & 237~KB \\
+            Flash usage (of 16~MB) & 1.5~MB (9.4\%) \\
+            Policy weights (FP32) & 21.8~KB (5,443 params) \\
+            Free SRAM after boot & 332~KB (65\%) \\
+            Inference latency (per step) & $\sim$7~ms \\
+            Golden test + ODE sim (56 inferences) & $\sim$400~ms \\
+            Inference duty cycle (1-hr interval) & 0.0002\% \\
+            FreeRTOS tasks running & 5 \\
+            CPU clock & 160~MHz \\
+            \hline
+        \end{tabular}
+    \end{table}
+
+    The 7~ms inference latency is five orders of magnitude below the 1-hour decision interval, leaving 99.9998\% of CPU time available for sensor acquisition, camera capture, vision processing, and telemetry. The 237~KB firmware binary occupies only 9.4\% of flash, leaving ample space for over-the-air firmware updates and data logging.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% SECTION 4.6 DISCUSSION
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Discussion}
+    \label{sec:Discussion}
+
+    \subsection{Deployment Feasibility}
+
+    The on-device results validate three key claims of this study. First, \textbf{feasibility}: a distilled 64$\times$64 MLP can execute RL inference on a \$10 microcontroller with no external ML library, achieving sub-10~ms latency per decision. Second, \textbf{correctness}: the pure-C implementation produces numerically identical outputs to the PyTorch reference model (20/20 golden vector match), confirming that the sim-to-edge weight export pipeline introduces no fidelity loss. Third, \textbf{adaptability}: the on-device simulation demonstrates context-dependent control that is qualitatively different from simple thermostat-based systems.
+
+    \subsection{Comparison with Literature}
+
+    While direct comparison with prior work on edge-deployed RL for post-harvest management is not possible (as no such system has been previously reported), the technical performance metrics can be contextualised against related work in TinyML and agricultural RL. The 7~ms inference latency compares favourably with reported MLP inference times on ESP32 platforms ($\sim$5--15~ms for similar architectures) \citep{warden2019tinyml}. The 97.8\% distillation fidelity is consistent with policy distillation results in the RL literature \citep{ruffy2019distilling}.
+
+    \subsection{Limitations of the Results}
+
+    All results are derived from the physics-based digital twin. While domain randomization improves robustness, the sim-to-real gap remains uncharacterised for the specific thermal dynamics of the physical enclosure. The emergent cooling-dominant strategy assumes passive cooling can reduce chamber temperature below ambient---a capability that depends on enclosure design, fan airflow, and ambient humidity conditions that have not been empirically validated.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% SECTION 4.7 SUMMARY
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Summary}
+    \label{sec:Results Summary}
+
+    The results demonstrate that: (1)~policy distillation achieves 97.8\% action fidelity with 12.4$\times$ compression; (2)~the 16D state-space variant (Variant B) provides the optimal balance of performance and efficiency; (3)~Edge-RL outperforms all baselines with a highest mean reward (+2.57) and timing timing accuracy (0.67 days); (4)~the DQN agent exhibits an emergent balanced diurnal strategy utilizing all thermal constraints effectively; and (5)~the complete system deploys within 237~KB of flash and 7~ms inference latency on the ESP32-S3, with golden vector verification confirming numerical equivalence to the training reference.

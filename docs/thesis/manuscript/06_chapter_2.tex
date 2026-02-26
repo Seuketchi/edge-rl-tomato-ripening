@@ -1,0 +1,166 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%---------------------------------------------------------------------%
+% Start of CHAPTER 2 REVIEW OF RELATED LITERATURE
+%---------------------------------------------------------------------%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\chapter{Review of Related Literature}
+    \label{ch:RRL}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% SECTION 2.1 POST-HARVEST BIOLOGY OF TOMATOES
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Post-Harvest Biology of Tomatoes}
+    \label{sec:Postharvest Biology}
+
+    \subsection{Climacteric Physiology and Ripening Biochemistry}
+
+    Tomatoes (\textit{Solanum lycopersicum}) are classified as climacteric fruits, characterized by a marked increase in respiration rate and a burst of autocatalytic ethylene production at the onset of ripening \citep{prasad2018}. This ethylene burst triggers a cascade of biochemical transformations including chlorophyll degradation, carotenoid (lycopene and $\beta$-carotene) accumulation, cell wall softening through polygalacturonase activity, and the development of volatile aroma compounds. Unlike non-climacteric fruits such as citrus and grapes, tomatoes continue to ripen after harvest, making the post-harvest window a critical period for quality management.
+
+    The rate of ripening is strongly temperature-dependent, following Arrhenius-type kinetics within the biologically active range. At temperatures below approximately 12.5$^{\circ}$C, chilling injury disrupts membrane integrity and prevents normal colour and flavour development \citep{saltveit2005}. At temperatures above 25$^{\circ}$C, lycopene biosynthesis is progressively inhibited, causing the fruit to accumulate $\beta$-carotene (yellow-orange) rather than lycopene (red) despite continued softening \citep{saltveit2005}. This narrow optimal window (12.5--25$^{\circ}$C) defines the biological constraints within which any autonomous ripening control system must operate.
+
+    \subsection{Philippine Tomato Varieties}
+
+    In the Philippines, the tomato market is dominated by two primary categories: commercial F1 hybrids and native cultivars, each presenting distinct post-harvest challenges.
+
+    \subsubsection{Diamante Max F1}
+
+    ``Diamante Max'' is widely favoured by commercial growers in the Philippines due to its heat tolerance and high yield potential. Studies indicate it is a highly perishable variety characterized by high moisture content ($\approx$95.31\%) and relatively thin skin \citep{diamante_properties}. Under ambient tropical conditions (23--34$^{\circ}$C), the fruit undergoes rapid physicochemical changes, with shelf life typically limited to 14 days without intervention \citep{diamante_storage}. Research by the Postharvest Horticulture Training and Research Center (PHTRC) at UPLB indicates that optimal storage at 13--15$^{\circ}$C significantly extends shelf life while avoiding chilling injury \citep{uplb_phtrc}, a temperature range that aligns with the proposed system's target control constraints.
+
+    \subsubsection{Native ``Tagalog'' Cultivars}
+
+    Native cultivars, commonly referred to as ``Kamatis Tagalog,'' are typically smaller and more irregular in shape than commercial hybrids, with thinner pericarps that increase susceptibility to mechanical damage during transport \citep{native_tomato}. These varieties are valued for their sour flavour profile in traditional Filipino cuisine, particularly in dishes such as \textit{sinigang} and \textit{tinola}. Their ripening kinetics are generally faster than those of hybrid varieties ($k_1 \approx 0.028$ vs.\ $0.015$~day$^{-1}$~$^{\circ}$C$^{-1}$), demanding more responsive cooling interventions to extend shelf life. This inherent variability between slow-ripening hybrids and fast-ripening natives motivates the use of an adaptive, learning-based controller rather than a fixed-rule system.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% SECTION 2.2 RIPENING KINETICS AND RATE CONSTANT CALIBRATION
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Ripening Kinetics and Rate Constant Calibration}
+    \label{sec:Ripening Kinetics}
+
+    The physics-based digital twin at the core of this system requires a calibrated ripening rate constant to produce biologically realistic training dynamics. The ordinary differential equation (ODE) governing the Continuous Chromatic Index is modelled as a first-order temperature-dependent decay:
+
+    \begin{equation}
+        X(t) = X_0 \, \exp\!\left(-k_1 \, (T - T_{\text{base}}) \, t\right)
+        \label{eq:ode_ripening}
+    \end{equation}
+
+    \noindent where $X(t)$ is the chromatic index at time $t$ (days), $X_0$ is the initial value (1.0 for mature green), $k_1$ is the ripening rate constant (day$^{-1}$~$^{\circ}$C$^{-1}$), $T$ is the chamber temperature ($^{\circ}$C), and $T_{\text{base}} = 12.5^{\circ}$C is the biological base temperature below which ripening effectively ceases.
+
+    \subsection{Empirical Ripening Time Data}
+
+    Calibrating $k_1$ requires empirical data on how quickly tomatoes transition from mature green to fully red at known temperatures. \citet{ogundiwin2022metachronous} measured this transition time for tomato cultivars stored at controlled temperatures. Table~\ref{tab:ripening_times} summarizes the key data points used for calibration.
+
+    \begin{table}[ht]
+        \caption{Empirical ripening times from mature green to fully red stage for tomato cultivars at controlled storage temperatures. Derived $k_1$ values computed using $k_1 = -\ln(X_{\text{ripe}}/X_0) \,/\, [(T - T_{\text{base}}) \cdot t_{\text{ripe}}]$ with $X_0 = 1.0$ and $X_{\text{ripe}} = 0.15$.}
+        \label{tab:ripening_times}
+        \centering
+        \begin{tabular}{lccc}
+            \hline
+            \textbf{Storage Temperature} & \textbf{Days to Red} & \textbf{Derived $k_1$} & \textbf{Source} \\
+            \hline
+            15$^{\circ}$C & $\sim$21 & 0.044 & \citet{ogundiwin2022metachronous} \\
+            20$^{\circ}$C & $\sim$14 & 0.022 & \citet{ogundiwin2022metachronous} \\
+            25$^{\circ}$C & $\sim$10 & 0.018 & \citet{ogundiwin2022metachronous} \\
+            30$^{\circ}$C & $\sim$14$^{*}$ & --- & \citet{ogundiwin2022metachronous} \\
+            \hline
+        \end{tabular}
+
+        \vspace{4pt}
+        \raggedright\footnotesize{$^{*}$At 30$^{\circ}$C, lycopene biosynthesis is inhibited \citep{saltveit2005}, impairing red colour development. The extended time reflects colour impairment, not slower senescence.}
+    \end{table}
+
+    The variation in derived $k_1$ values across temperatures (0.018--0.044) reflects the limitation of the linear $(T - T_{\text{base}})$ approximation relative to true Arrhenius kinetics. Within the practical operating range of 20--25$^{\circ}$C, the values converge around $k_1 \approx 0.02$~day$^{-1}$~$^{\circ}$C$^{-1}$, which is adopted as the nominal parameter.
+
+    \subsection{Base Temperature and Thermal Limits}
+
+    The UC Davis Postharvest Technology Center \citep{ucdavis_tomato} recommends 12.5$^{\circ}$C (55$^{\circ}$F) as the minimum temperature for safe postharvest ripening, consistent with \citeauthor{saltveit2005}'s reported range of 12.5--25$^{\circ}$C for acceptable ripening \citep{saltveit2005}. Below 10$^{\circ}$C, chilling injury disrupts membrane function, preventing normal colour development and flavour compound accumulation. The value $T_{\text{base}} = 12.5^{\circ}$C is therefore adopted as the biological threshold below which the ripening rate is clamped to zero in the simulation.
+
+    \subsection{Lycopene Synthesis Inhibition Above 25$^{\circ}$C}
+
+    A well-documented limitation of tomato ripening is that lycopene biosynthesis---the primary driver of red pigmentation---is progressively inhibited above approximately 25$^{\circ}$C \citep{saltveit2005}. At elevated temperatures (30--35$^{\circ}$C), the fruit continues to soften and senesce but accumulates $\beta$-carotene rather than lycopene. For the deployment environment of Iligan City, Philippines (indoor without air conditioning; ambient 22--31$^{\circ}$C), the chamber temperature regularly exceeds 25$^{\circ}$C during daytime hours. The Continuous Chromatic Index $X$ is therefore best interpreted as a proxy for overall ripeness progression (combining softening, colour change, and aroma development) rather than strictly red pigmentation.
+
+    \subsection{Calibrated Parameters for the Digital Twin}
+
+    Based on the empirical data and biological constraints, the following calibrated parameters are adopted for the digital twin simulator:
+
+    \begin{itemize}
+        \item $k_1 = 0.02$~day$^{-1}$~$^{\circ}$C$^{-1}$ (nominal), matching 10--14 day ripening at 20--25$^{\circ}$C.
+        \item $k_1$ variation: $\pm 0.008$ via domain randomization, covering both slow-ripening commercial hybrids (Diamante Max, $k_1 \approx 0.015$) and faster native cultivars (Kamatis Tagalog, $k_1 \approx 0.028$).
+        \item $T_{\text{base}} = 12.5^{\circ}$C, per UC Davis and \citet{saltveit2005}.
+        \item $T_{\text{amb}} = 27.0 \pm 3.0^{\circ}$C, reflecting the diurnal temperature cycle in Iligan City.
+    \end{itemize}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% SECTION 2.3 REINFORCEMENT LEARNING IN AGRICULTURE
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Reinforcement Learning in Controlled Environment Agriculture}
+    \label{sec:RL in Agriculture}
+
+    Reinforcement learning (RL) provides a general framework for sequential decision-making problems where an agent learns a policy $\pi(a|s)$ that maximizes cumulative reward through repeated interaction with an environment \citep{sutton2018}. In agricultural applications, RL offers a fundamental advantage over classical controllers such as Proportional-Integral-Derivative (PID) systems: whereas PID controllers react to instantaneous setpoint errors, RL agents learn anticipatory strategies that optimize long-horizon objectives---for example, sacrificing short-term energy efficiency to achieve higher cumulative fruit quality.
+
+    \subsection{Climate Control and Greenhouse Management}
+
+    \citet{chen2022greenhouse} demonstrated the efficacy of Deep Q-Networks for greenhouse climate control, training a DQN agent to regulate temperature, humidity, and CO$_2$ concentration while reducing energy consumption relative to rule-based controllers. Similarly, \citet{yang2020irrigation} applied RL to precision irrigation scheduling, showing that learned policies outperformed both fixed-interval and threshold-based baselines. \citet{hemming2020greenhouse} explored AI-integrated sensor systems for cherry tomato cultivation, demonstrating that data-driven approaches can capture the complex interactions between environmental variables and plant physiology that simplified models often miss.
+
+    A common limitation of these systems is their dependence on cloud infrastructure or dedicated compute servers for policy inference \citep{ray2017}. This introduces latency, ongoing connectivity costs, and single-point-of-failure risks that are particularly problematic for rural agricultural deployments where network connectivity is intermittent \citep{prasad2018}.
+
+    \subsection{Post-Harvest Management}
+
+    The application of RL to post-harvest storage and ripening control remains significantly underexplored. Current post-harvest climate control systems predominantly rely on Model Predictive Control (MPC) or standard IoT monitoring architectures \citep{li2021edgeai}. While MPC performs well when an accurate system model is available, it requires explicit formulation of dynamics equations and constraint sets, making it brittle to the biological variability inherent in fruit ripening (cultivar differences, harvest maturity variation, mechanical damage).
+
+    RL offers a data-driven alternative that can learn robust policies directly from interaction with a (simulated) environment, naturally accommodating the stochastic transitions and delayed rewards characteristic of biological systems. However, no prior work has demonstrated a complete RL pipeline---from simulation-based training through policy compression to embedded deployment---for autonomous post-harvest management. This gap defines the primary research contribution of the present study.
+
+    \subsection{Simulation Environments for Agricultural RL}
+
+    Training RL agents directly on physical crops is impractical due to the slow timescale of ripening (days to weeks per episode), the destructive nature of failed episodes (spoiled fruit cannot be reset), and the limited reproducibility of biological experiments. Simulation-based training environments address these challenges by enabling thousands of accelerated training episodes per hour at near-zero marginal cost.
+
+    \citet{overweg2021cropgym} introduced CropGym, a Gymnasium-compatible environment for crop management RL that demonstrated the viability of training agricultural policies in simulation. The present study follows a similar paradigm, constructing a physics-based digital twin of the tomato ripening process (Section~\ref{sec:Ripening Kinetics}) with domain randomization to improve robustness to the sim-to-real gap.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% SECTION 2.4 EDGE AI AND MODEL COMPRESSION
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Edge AI and Model Compression}
+    \label{sec:Edge AI}
+
+    Deploying deep learning models on microcontrollers---a paradigm increasingly referred to as TinyML \citep{warden2019tinyml}---requires aggressive optimization to fit within the strict memory ($<$512~KB SRAM), storage ($<$4~MB flash), and computational (no hardware floating-point unit in many architectures) constraints of embedded systems.
+
+    \subsection{Knowledge Distillation}
+
+    \citet{hinton2015distilling} introduced knowledge distillation as a general model compression technique, where a compact ``student'' network is trained to approximate the soft output distribution (logits) of a larger, more capable ``teacher'' network. By training on the teacher's softened probability distribution (using a temperature parameter $\tau > 1$), the student learns not only the teacher's hard predictions but also the relative ranking of incorrect actions, capturing richer information about the learned representation.
+
+    In the context of reinforcement learning, policy distillation \citep{ruffy2019distilling} extends this framework to action selection: the teacher's state-action mapping, generated through rollouts in the environment, serves as a supervised training dataset for the student. This approach decouples the computationally expensive exploration phase (performed by the large teacher) from the compact inference phase (performed by the small student), enabling deployment of RL-calibre decision-making on devices with orders-of-magnitude fewer parameters.
+
+    \subsection{Quantization for Microcontroller Deployment}
+
+    Standard 32-bit floating-point (FP32) model representations are both memory-intensive and computationally expensive on microcontrollers that lack hardware floating-point units. Quantization reduces the numerical precision of weights and activations from FP32 to 8-bit integers (INT8), achieving a 4$\times$ reduction in model size and enabling the use of SIMD (Single Instruction, Multiple Data) integer instructions available on modern microcontroller architectures such as the Xtensa LX7 core.
+
+    Symmetric per-channel quantization---where independent scaling factors are computed for each output neuron---provides a favourable balance between compression ratio and accuracy preservation for small MLP architectures. The ESP-DL library \citep{espdl2024} provides hardware-optimized INT8 inference kernels specifically designed for Espressif microcontrollers, outperforming generic interpreters such as TensorFlow Lite for Microcontrollers (TFLite Micro) on the ESP32-S3 platform.
+
+    By combining policy distillation with INT8 quantization, the present study demonstrates that complex RL control policies can be executed in under 10~ms on the ESP32-S3, well within the 15-minute decision cycle required for ripening management.
+
+    \subsection{Computer Vision for Ripeness Detection}
+
+    Traditional computer vision approaches to fruit ripeness assessment rely on discrete categorical classification. Deep learning architectures, such as MobileNetV2 and YOLO variants, are frequently deployed on edge devices (like the Raspberry Pi or NVIDIA Jetson) to segment tomatoes and categorize them into rigid stages such as ``unripe'', ``half-ripe'', and ``ripe'' \citep{jeannoob_yolov8, tomatod_dataset}. While computationally efficient for object sorting tasks, discrete classification is inadequate for defining continuous Markov state observations in reinforcement learning.
+
+    Recent advances explore regression models that map colorimetric properties directly to continuous maturity stages. Automated grading systems have demonstrated that evaluating continuous spatial features, such as RGB or HSV properties, yields higher accuracy for assessing precise biochemicial progress than categorical bucketing \citep{ripeness_regression_cv}. This study builds upon this methodology by explicitly discarding categorical labels in favour of predicting a continuous vector, ensuring the vision module accurately parameterizes the non-linear Arrhenius state dynamics.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% SECTION 2.5 SYNTHESIS AND RESEARCH GAP
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Synthesis and Identification of the Research Gap}
+    \label{sec:Research Gap}
+
+    The preceding review identifies mature bodies of work in three domains: (1) post-harvest biology and tomato ripening kinetics, providing the physical models necessary for simulation; (2) reinforcement learning for agricultural control, demonstrating the viability of learned policies for climate management; and (3) edge AI and model compression, enabling neural network inference on ultra-low-cost microcontrollers. However, no prior research has systematically integrated all three domains into a validated end-to-end system.
+
+    Existing RL-based agricultural systems operate on cloud or server hardware, precluding deployment in connectivity-limited settings. Existing edge-deployed models in agriculture are limited to inference tasks (image classification, anomaly detection) rather than sequential decision-making. And existing post-harvest management systems rely on fixed-rule controllers that cannot adapt to the variability across cultivars and environmental conditions.
+
+    This study addresses the convergence gap by developing Edge-RL: a system that trains an RL policy in a physics-informed simulation of tomato ripening, distils the policy into a compact MLP through knowledge distillation, and deploys the compressed model on an ESP32-S3 microcontroller for autonomous, real-time ripening control without cloud connectivity. This integration represents, to the authors' knowledge, the first demonstration of a complete sim-to-edge RL pipeline for post-harvest agricultural management.

@@ -13,6 +13,7 @@
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "nvs_flash.h"
+#include "driver/gpio.h"
 
 #include "app_config.h"
 #include "shared_state.h"
@@ -43,6 +44,17 @@ void app_main(void)
     /* Shared state mutex */
     g_state_mutex = xSemaphoreCreateMutex();
     ESP_ERROR_CHECK(g_state_mutex == NULL ? ESP_ERR_NO_MEM : ESP_OK);
+
+    /* Configure ML Profiling Pin for power measurement */
+    gpio_config_t io_conf = {
+        .intr_type = GPIO_INTR_DISABLE,
+        .mode = GPIO_MODE_OUTPUT,
+        .pin_bit_mask = (1ULL << PROFILING_PIN_ML),
+        .pull_down_en = 0,
+        .pull_up_en = 0
+    };
+    gpio_config(&io_conf);
+    gpio_set_level(PROFILING_PIN_ML, 0);
 
     /* Spawn software-only tasks first (golden test + ODE sim run immediately) */
     xTaskCreate(edge_rl_task_policy,    "policy",    TASK_STACK_POLICY,    NULL, TASK_PRIORITY_POLICY,    NULL);

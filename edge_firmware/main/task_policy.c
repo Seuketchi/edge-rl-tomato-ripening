@@ -27,6 +27,7 @@
 #include "freertos/semphr.h"
 #include "esp_log.h"
 #include "esp_timer.h"
+#include "driver/gpio.h"
 
 #include "app_config.h"
 #include "shared_state.h"
@@ -401,9 +402,18 @@ void edge_rl_task_policy(void *pvParameters)
                 state_vec[0]  = x;
                 state_vec[1]  = dx_dt;
                 state_vec[2]  = x_ref;
-                state_vec[3]  = 0.0f;  state_vec[4]  = 0.0f;  state_vec[5]  = 0.0f;
-                state_vec[6]  = 0.0f;  state_vec[7]  = 0.0f;  state_vec[8]  = 0.0f;
-                state_vec[9]  = 0.0f;  state_vec[10] = 0.0f;  state_vec[11] = 0.0f;
+
+                /* RGB Distribution Features (Variant B) */
+                state_vec[3]  = g_state.rgb_mean[0];
+                state_vec[4]  = g_state.rgb_mean[1];
+                state_vec[5]  = g_state.rgb_mean[2];
+                state_vec[6]  = g_state.rgb_std[0];
+                state_vec[7]  = g_state.rgb_std[1];
+                state_vec[8]  = g_state.rgb_std[2];
+                state_vec[9]  = g_state.rgb_mode[0];
+                state_vec[10] = g_state.rgb_mode[1];
+                state_vec[11] = g_state.rgb_mode[2];
+
                 state_vec[12] = temperature;
                 state_vec[13] = g_state.humidity_pct;
                 state_vec[14] = days_elap;
@@ -424,8 +434,11 @@ void edge_rl_task_policy(void *pvParameters)
 
         uint8_t action = ACTION_MAINTAIN;
         float   confidence = 0.0f;
+        
+        gpio_set_level(PROFILING_PIN_ML, 1); /* START PROFILING ML ENERGY */
         esp_err_t err = edge_rl_policy_infer(state_vec, POLICY_STATE_DIM,
                                               &action, &confidence);
+        gpio_set_level(PROFILING_PIN_ML, 0); /* STOP PROFILING ML ENERGY  */
 
         int64_t latency_us = esp_timer_get_time() - t_start;
 

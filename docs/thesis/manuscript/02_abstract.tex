@@ -1,0 +1,20 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% ABSTRACT
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\phantomsection
+\addcontentsline{toc}{chapter}{ABSTRACT}
+
+\begin{center}
+    \textbf{ABSTRACT}
+\end{center}
+
+\vspace{0.5cm}
+
+Post-harvest losses account for 20--40\% of tomato production in developing countries, driven by the absence of affordable, intelligent decision-support systems for smallholder farmers. Existing Internet-of-Things (IoT) solutions provide passive environmental monitoring without autonomous action, while cloud-based reinforcement learning (RL) systems require expensive infrastructure and continuous connectivity that is unavailable in rural agricultural settings. This study developed \textit{Edge-RL}, a novel system that deploys a complete RL-based decision pipeline---from visual perception to autonomous ripening control---entirely on a \$33 ESP32-S3 microcontroller. A physics-based digital twin simulator was constructed using first-order Arrhenius kinetics to model tomato ripening as a function of temperature, with domain randomization across six parameters to improve sim-to-real transferability. A Deep Q-Network (DQN) teacher policy was trained for 1,000,000 timesteps in this simulated environment and subsequently distilled into a compact 5,443-parameter student multilayer perceptron (MLP) via knowledge distillation, achieving 97.8\% action fidelity with 30$\times$ compression. Three state-space variants were evaluated through ablation: a 7D scalar variant, a 16D variant incorporating RGB colour statistics, and a 20D variant with spatial pooling features. Variant B (16D) was selected for deployment based on its optimal balance of performance and model size. The distilled policy was exported as pure C arrays and deployed on the ESP32-S3, achieving 7~ms inference latency and occupying 237~KB of flash memory. Golden vector verification confirmed 20/20 exact action matches between the PyTorch reference and the on-device C implementation. Evaluation over 100 episodes demonstrated that the trained DQN policy achieved a mean timing error of 0.55 days, outperforming Fixed-Day (0.95 days), Random (1.01 days), and Fixed-Stage (1.62 days) baselines. The agent learned an emergent cooling-dominant strategy, selecting the COOL action in 93.2\% of timesteps to suppress the slower calibrated ripening rate ($k_1 = 0.02$ day$^{-1}$ $^{\circ}$C$^{-1}$) and precisely meet target harvest windows. The results demonstrate that distilled reinforcement learning policies can achieve autonomous, real-time agricultural decision-making on ultra-low-cost microcontrollers without cloud connectivity, presenting a viable path toward democratizing precision agriculture for resource-limited farming communities.
+
+\vspace{0.8cm}
+
+\noindent \textbf{Keywords:} Edge intelligence, reinforcement learning, post-harvest management, ESP32-S3, sim-to-real transfer, policy distillation, knowledge distillation, digital twin, tomato ripening, precision agriculture
+
+\newpage

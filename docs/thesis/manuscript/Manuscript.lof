@@ -1,0 +1,8 @@
+\babel@toc {english}{}\relax 
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {3.1}{\ignorespaces System block diagram of the Edge-RL architecture. The ESP32-S3 microcontroller handles both visual perception (Continuous Chromatic Index extraction) and control (RL policy inference). Environmental sensors provide feedback from the physical ripening chamber.}}{23}{figure.caption.12}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }

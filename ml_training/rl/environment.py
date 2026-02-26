@@ -181,12 +181,18 @@ class TomatoRipeningEnv(gym.Env):
         Returns:
             (obs, reward, terminated, truncated, info)
         """
+        # Save prev_ripeness BEFORE the simulator step for reward computation
+        prev_x = self.prev_ripeness
+
         # Simulator step
         raw_state = self.simulator.step(action, dt_hours=1.0)
         self.current_step += 1
 
         obs = self._make_observation(raw_state)
-        reward = self._compute_reward(raw_state, action, obs)
+        reward = self._compute_reward(raw_state, action, obs, prev_x)
+
+        # Update prev_ripeness AFTER reward is computed
+        self.prev_ripeness = raw_state["ripeness"]
 
         # Check termination
         terminated = False
@@ -238,7 +244,6 @@ class TomatoRipeningEnv(gym.Env):
 
         # dX/dt (velocity) — finite difference
         dx_dt = x - self.prev_ripeness
-        self.prev_ripeness = x
 
         # X_ref from analytical ODE at ideal temp
         x_ref = self.simulator.compute_x_ref(state["days_elapsed"])
@@ -291,6 +296,7 @@ class TomatoRipeningEnv(gym.Env):
         state: dict,
         action: int,
         obs: np.ndarray,
+        prev_x: float | None = None,
     ) -> float:
         """Compute the three-component reward signal.
 
@@ -346,7 +352,8 @@ class TomatoRipeningEnv(gym.Env):
 
         # --- 2. Progress reward (r_progress) ---
         # Positive reward for ripening progress (prev_X > X means progress)
-        delta_x = self.prev_ripeness - x  # Positive when ripening
+        px = prev_x if prev_x is not None else self.prev_ripeness
+        delta_x = px - x  # Positive when ripening
         r_progress = self.progress_weight * delta_x
 
         # --- 3. Progressive safety penalty (capped) ---

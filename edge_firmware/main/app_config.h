@@ -61,6 +61,9 @@
 #define POLICY_NUM_ACTIONS          3   /* maintain, heat(+ΔT), cool(heater off) */
 #define POLICY_STATE_DIM            16  /* Variant B: X, dX/dt, X_ref, C_mu(3), C_sig(3), C_mode(3), T, H, t_e, t_rem */
 
+/* ---- Power Profiling ---- */
+#define PROFILING_PIN_ML            GPIO_NUM_12  /* toggles HIGH during active ML inference */
+
 /* ---- Safety guardrail constants ---- */
 #define SAFETY_TEMP_MAX             35.0f  /* °C — hard-coded thermal ceiling */
 #define SAFETY_TEMP_MIN             12.5f  /* °C — hard-coded thermal floor  */

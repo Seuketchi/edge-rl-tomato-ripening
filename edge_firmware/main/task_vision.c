@@ -16,13 +16,22 @@
 #include "esp_log.h"
 #include "esp_camera.h"
 #include "esp_timer.h"
+#include "driver/gpio.h"
 
 #include "app_config.h"
 #include "shared_state.h"
 
+typedef struct {
+    float mean[3];
+    float std[3];
+    float mode[3];
+    float chromatic_x;
+} vision_stats_t;
+
 /* From components/edge_rl_vision */
-esp_err_t edge_rl_vision_infer(const uint8_t *rgb_buf, size_t buf_len,
-                                uint8_t *out_class, float *out_confidence);
+esp_err_t edge_rl_vision_infer(const uint8_t *jpg_buf, size_t jpg_len,
+                                uint8_t *out_class, float *out_confidence,
+                                vision_stats_t *out_stats);
 
 /* Queue declared in task_camera.c */
 extern QueueHandle_t g_camera_queue;
@@ -44,7 +53,11 @@ void edge_rl_task_vision(void *pvParameters)
 
         uint8_t cls = 0;
         float   conf = 0.0f;
-        esp_err_t err = edge_rl_vision_infer(fb->buf, fb->len, &cls, &conf);
+        vision_stats_t stats = {0};
+        
+        gpio_set_level(PROFILING_PIN_ML, 1); /* START PROFILING ML ENERGY */
+        esp_err_t err = edge_rl_vision_infer(fb->buf, fb->len, &cls, &conf, &stats);
+        gpio_set_level(PROFILING_PIN_ML, 0); /* STOP PROFILING ML ENERGY  */
 
         int64_t latency_ms = (esp_timer_get_time() - t_start) / 1000;
         esp_camera_fb_return(fb);
@@ -54,9 +67,19 @@ void edge_rl_task_vision(void *pvParameters)
             continue;
         }
 
-        ESP_LOGI(TAG, "[vision] class=%d conf=%.2f latency=%lldms", cls, conf, latency_ms);
+        ESP_LOGI(TAG, "[vision] X=%.3f class=%d conf=%.2f latency=%lldms", 
+                 stats.chromatic_x, cls, conf, latency_ms);
 
         if (xSemaphoreTake(g_state_mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
+            g_state.prev_chromatic_x = g_state.chromatic_x;
+            g_state.chromatic_x      = stats.chromatic_x;
+            
+            for(int i=0; i<3; i++) {
+                g_state.rgb_mean[i] = stats.mean[i];
+                g_state.rgb_std[i]  = stats.std[i];
+                g_state.rgb_mode[i] = stats.mode[i];
+            }
+            
             g_state.ripeness_class   = cls;
             g_state.class_confidence = conf;
             g_state.vision_valid     = true;

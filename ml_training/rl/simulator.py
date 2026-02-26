@@ -146,20 +146,21 @@ class TomatoRipeningSimulator:
         # --- Incremental temperature control ---
         if action == 1:  # heat: increment setpoint
             self.temperature += cfg.delta_t_step
-        elif action == 2:  # cool: decrement setpoint
+        elif action == 2:  # cool: decrement setpoint (heater OFF + vents open)
             self.temperature -= cfg.delta_t_step
         # action == 0: maintain — no setpoint change
 
         # Natural drift toward ambient (models imperfect insulation)
         ambient_temp = cfg.ambient_temp_mean + self.rng.normal(0, cfg.ambient_temp_std)
         diff = ambient_temp - self.temperature
-        self.temperature += diff * 0.05 * dt_hours  # Slow drift
+        # Drift rate depends on action: "cool" opens vents → faster drift
+        drift_rate = 0.15 if action == 2 else 0.05
+        self.temperature += diff * drift_rate * dt_hours
 
         # Small stochastic noise
         self.temperature += self.rng.normal(0, 0.1) * dt_hours
 
-        # Heater-only system: cannot cool below ambient (no active cooling)
-        self.temperature = max(self.temperature, ambient_temp)
+        # Global physical clamp (no hard ambient floor — passive cooling is possible)
         self.temperature = np.clip(self.temperature, 10.0, 40.0)
 
         # Humidity drift

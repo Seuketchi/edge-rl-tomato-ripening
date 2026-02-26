@@ -1,0 +1,235 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%---------------------------------------------------------------------%
+% Start of CHAPTER 1 INTRODUCTION
+%---------------------------------------------------------------------%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\renewcommand{\thechapter}{\Roman{chapter}}
+\chapter{Introduction}
+    \thispagestyle{empty} 
+    \pagenumbering{arabic} 
+    \label{ch:Introduction}
+    \renewcommand{\thechapter}{\arabic{chapter}}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% SECTION 1.1 BACKGROUND OF THE STUDY
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Background of the Study}
+    \label{sec:Background of the Study}
+
+    Post-harvest losses represent one of the most persistent challenges facing global food security. The Food and Agriculture Organization of the United Nations estimates that between 20\% and 40\% of fruit and vegetable production in developing countries is lost after harvest, before reaching consumers \citep{fao2019}. Among horticultural crops, tomatoes (\textit{Solanum lycopersicum}) are particularly vulnerable due to their climacteric physiology: unlike non-climacteric fruits, tomatoes continue to respire and ripen after harvest, exhibiting a characteristic spike in ethylene production that drives rapid biochemical changes in colour, firmness, and nutritional content \citep{prasad2018}. Without precise environmental control during this post-harvest window, farmers face a narrow margin between premature sale at low prices and total spoilage.
+
+    Commercial ripening operations mitigate these losses using industrial controlled-atmosphere chambers equipped with ethylene injection systems, active refrigeration units, and automated climate controllers. These facilities synchronize the ripening of large batches to meet supermarket scheduling demands, achieving consistent quality at scale. However, the capital expenditure for such infrastructure ranges from \$10,000 to \$50,000 per installation \citep{prasad2018}, rendering them inaccessible to the approximately 5.5 million smallholder farming households in the Philippines, most of whom earn less than \$2,000 annually \citep{worldbank2020}. Consequently, small-scale farmers are compelled to sell their produce immediately at harvest, often at fluctuating and unfavourable farm-gate prices, perpetuating cycles of income instability and food waste.
+
+    Recent advances in the Internet of Things (IoT) have introduced affordable environmental monitoring solutions for agriculture. Low-cost sensor networks can now track temperature, humidity, and gas concentrations in storage environments in real time, providing farmers with data visibility that was previously exclusive to industrial operations \citep{kader2005}. However, monitoring alone does not constitute control. Existing IoT solutions provide passive data collection without autonomous decision-making capability: the farmer must still manually interpret sensor readings and adjust environmental conditions, a task requiring expertise and continuous attention that smallholders cannot practically provide.
+
+    Reinforcement learning (RL) offers a principled framework for autonomous sequential decision-making under uncertainty, where an agent learns an optimal control policy through trial-and-error interaction with an environment \citep{sutton2018}. In controlled-environment agriculture, RL has demonstrated promising results for greenhouse climate management, irrigation scheduling, and crop yield optimization \citep{warden2019tinyml}. However, virtually all existing RL-based agricultural control systems depend on cloud infrastructure for policy inference, requiring continuous internet connectivity, recurring subscription costs, and reliance on third-party servers---conditions that are impractical in rural Philippine farming communities where connectivity remains intermittent at best.
+
+    The emergence of edge computing and model compression techniques presents an alternative paradigm. Knowledge distillation \citep{hinton2015distilling} enables the transfer of learned behaviour from a large ``teacher'' neural network to a compact ``student'' model suitable for resource-constrained microcontrollers. Combined with hardware-optimized inference frameworks such as Espressif's ESP-DL, it is now feasible to deploy complete neural network inference pipelines on microcontrollers costing less than \$5. The ESP32-S3, a dual-core Xtensa LX7 system-on-chip with integrated camera interface and 512~KB of SRAM, represents a particularly compelling platform for this approach, offering sufficient computational resources for small multilayer perceptron (MLP) inference while maintaining an ultra-low bill-of-materials.
+
+    This convergence of three technological domains---physics-based simulation for safe RL training, knowledge distillation for model compression, and edge microcontroller deployment---motivates the present study. By integrating these components into a unified pipeline, this research aims to demonstrate that autonomous, intelligent post-harvest ripening control can be achieved entirely on a \$33 microcontroller, without cloud connectivity, creating a practical and affordable tool for smallholder farmers in developing economies.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% SECTION 1.2 STATEMENT OF THE PROBLEM
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Statement of the Problem}
+    \label{sec:Statement of the Problem}
+
+    Current approaches to post-harvest ripening management for smallholder farmers are fundamentally inadequate, creating a critical gap between the monitoring capabilities of affordable IoT systems and the autonomous control provided by prohibitively expensive industrial facilities. Specifically, this research addresses the following problems:
+
+    \begin{enumerate}
+        \item There is a lack of low-cost, autonomous systems capable of making real-time temperature control decisions for post-harvest ripening without requiring cloud connectivity or continuous human supervision. Existing IoT solutions provide environmental monitoring but delegate all control decisions to the farmer, while cloud-based RL solutions require infrastructure that is unavailable in rural agricultural settings.
+
+        \item The feasibility of deploying reinforcement learning policies on ultra-low-cost microcontrollers (under \$5 for the system-on-chip) for agricultural control tasks has not been systematically demonstrated. While RL has been applied to greenhouse management, these implementations rely on server-grade hardware for inference, and no prior work has validated a complete sim-to-edge RL pipeline for post-harvest management.
+
+        \item Training RL agents directly on physical systems is impractical for biological processes due to the slow timescale of ripening (days to weeks), the destructive nature of failed episodes, and the variability across individual fruits and cultivars. There is a need for validated physics-based simulation environments that adequately capture the thermodynamics and biochemistry of tomato ripening while supporting efficient RL training through domain randomization.
+
+        \item The compression of RL policies to meet the memory and computational constraints of microcontrollers (typically $<$512~KB SRAM, no floating-point unit) introduces quantization and approximation errors whose impact on agricultural control performance has not been characterized.
+    \end{enumerate}
+
+    By addressing these problems through systematic development and evaluation within a simulated environment, this research establishes the foundational feasibility of edge-deployed reinforcement learning for autonomous post-harvest management.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% SECTION 1.3 OBJECTIVES OF THE STUDY
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Objectives of the Study}
+    \label{sec:Objectives of the Study}
+
+    \subsection{General Objective}
+
+    The general objective of this study is to develop a low-cost, offline reinforcement learning system on an ESP32-S3 microcontroller that autonomously optimizes the post-harvest ripening of tomatoes by learning temperature control policies through simulation and deploying them at the edge without cloud connectivity.
+
+    \subsection{Specific Objectives}
+
+    The specific objectives of this study are as follows:
+
+    \begin{enumerate}
+        \item To design and implement a physics-based digital twin simulator for tomato post-harvest ripening, incorporating first-order Arrhenius kinetics with domain randomization across six environmental and biological parameters.
+
+        \item To train a Deep Q-Network (DQN) teacher policy in the simulated environment that learns to minimize harvest timing error while maintaining fruit quality within acceptable bounds.
+
+        \item To distill the trained DQN policy into a compact student multilayer perceptron suitable for microcontroller deployment, and to evaluate the fidelity-compression trade-off across multiple state-space representations (7D, 16D, and 20D variants).
+
+        \item To export the distilled policy as pure C arrays and deploy it on the ESP32-S3 microcontroller, verifying functional equivalence between the PyTorch reference implementation and the on-device C inference through golden vector testing.
+
+        \item To evaluate the deployed system's performance by comparing the learned policy against fixed-rule baselines (Random, Fixed-Day, Fixed-Stage) across standardized evaluation episodes, quantifying improvements in harvest timing accuracy, fruit quality preservation, and cumulative reward.
+    \end{enumerate}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% SECTION 1.4 ORIGINALITY OF THE STUDY
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Originality of the Study}
+    \label{sec:Originality of the Study}
+
+    While reinforcement learning has been applied to various agricultural domains---including greenhouse climate control \citep{sutton2018}, irrigation scheduling, and crop yield optimization---no prior work has demonstrated a complete pipeline from RL training through knowledge distillation to deployment on an ultra-low-cost microcontroller for post-harvest management. This study makes the following original contributions:
+
+    \begin{enumerate}
+        \item \textbf{First sim-to-edge RL pipeline for post-harvest control.} This work presents the first demonstration of a reinforcement learning agent trained entirely in simulation and deployed on a sub-\$5 microcontroller for autonomous post-harvest ripening management, operating without cloud connectivity.
+
+        \item \textbf{Physics-informed digital twin with domain randomization.} A tomato ripening simulator based on calibrated Arrhenius kinetics ($k_1 = 0.02$~day$^{-1}$~$^{\circ}$C$^{-1}$) with six-parameter domain randomization is developed, enabling robust policy training that accounts for cultivar variability and environmental uncertainty.
+
+        \item \textbf{State-space ablation for edge deployment.} A systematic comparison of three observation-space designs (7D scalar, 16D with RGB statistics, 20D with spatial pooling) is conducted, providing empirical guidance for practitioners designing edge-deployed perception pipelines for biological systems.
+
+        \item \textbf{Pure-C MLP inference with golden vector verification.} The distilled policy is exported as statically allocated C arrays with a handwritten forward pass, verified through exact numerical agreement with the PyTorch reference model across 20 representative test states.
+    \end{enumerate}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% SECTION 1.5 SCOPE AND LIMITATIONS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Scope and Limitations}
+    \label{sec:Scope and Limitations}
+
+    \subsection{Scope of the Study}
+        \label{sec:Scope of the Study}
+
+        This thesis encompasses the complete pipeline from simulation-based reinforcement learning training to on-device inference on embedded hardware. The following boundaries define the system's technical scope:
+
+        \subsubsection{Target Crop and Ripening Model}
+
+        The ripening model is calibrated for Philippine tomato varieties, specifically the commercial hybrid ``Diamante Max F1'' and native ``Kamatis Tagalog.'' The first-order ODE governing ripening dynamics uses a calibrated rate constant $k_1 = 0.02$~day$^{-1}$~$^{\circ}$C$^{-1}$, derived from published Arrhenius activation energies for tomato cell wall softening and lycopene biosynthesis.
+
+        \subsubsection{System Architecture}
+
+        The system monitors and controls the ripening of a single tomato within an enclosed chamber. The control mechanism is limited to a resistive heating element (raising temperature above ambient) and passive ventilation (cooling toward ambient). No active refrigeration (compressor or Peltier element) is used, constraining the controllable temperature range to $T_{\text{ambient}} \leq T_{\text{chamber}} \leq 35^{\circ}$C.
+
+        \subsubsection{Offline Edge Deployment}
+
+        All inference and control logic execute locally on the ESP32-S3 microcontroller. No cloud connectivity is required during operation. The system is designed for deployment in rural areas without reliable internet access, running autonomously once powered on.
+
+        \subsubsection{Simulation-to-Edge Pipeline}
+
+        The study validates the complete pipeline from Gymnasium-based environment simulation, through DQN teacher training (1,000,000 timesteps) and student distillation (97.8\% action fidelity), to pure-C inference on the Xtensa LX7 core achieving 7~ms latency per decision.
+
+    \subsection{Limitations of the Study}
+        \label{sec:Limitations of the Study}
+
+        The following limitations constrain the generalizability and completeness of the current work:
+
+        \subsubsection{Simulation-Only Training and Evaluation}
+
+        The RL policy is trained and evaluated entirely within a physics-based digital twin. While domain randomization is applied across six parameters to improve robustness, the policy has not been validated against real physical tomatoes in a closed-loop hardware experiment. All reported performance metrics (timing error, quality scores, reward) are simulation-derived.
+
+        \subsubsection{Synthetic Colour Statistics}
+
+        The RGB colour statistics (mean, standard deviation, mode) used in the 16D and 20D state-space variants are generated synthetically by the simulator's observation model. Real camera-derived statistics will exhibit different noise characteristics, lens distortion, white balance dependencies, and lighting variability that are not fully captured by the synthetic model.
+
+        \subsubsection{No Active Cooling}
+
+        The absence of a compressor or Peltier module means the system cannot cool below ambient temperature. In tropical climates where $T_{\text{ambient}}$ may exceed 30$^{\circ}$C, the agent's ability to slow ripening is limited to the passive MAINTAIN action. The emergent cooling-dominant strategy observed in simulation may not transfer directly to hardware without active cooling capability.
+
+        \subsubsection{No Ethylene Sensing}
+
+        The system does not incorporate ethylene gas sensors, which provide a direct biochemical indicator of climacteric ripening onset. Ripeness estimation relies solely on visual (RGB) and environmental (temperature, humidity) features, omitting a physiologically important signal.
+
+        \subsubsection{Fixed Policy at Deployment}
+
+        The student MLP architecture (64$\times$64, ReLU) is fixed at compile time and embedded in the firmware image. On-device fine-tuning, continual learning, or over-the-air policy updates are not supported in the current implementation.
+
+        \subsubsection{Single-Fruit Operation}
+
+        The current system manages a single fruit per chamber. Real-world applications involving batch ripening of multiple fruits at different maturity stages would require multi-agent coordination or aggregate state representations not addressed in this work.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% SECTION 1.6 SIGNIFICANCE OF THE STUDY
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Significance of the Study}
+    \label{sec:Significance of the Study}
+
+    This study addresses the critical intersection of food security, edge computing, and precision agriculture by demonstrating that autonomous post-harvest control can be achieved on hardware affordable to smallholder farmers. The significance of this work extends across several dimensions:
+
+    \textbf{For smallholder farmers,} this research provides a pathway toward decoupling harvest timing from immediate market pressures. By enabling autonomous temperature control during the post-harvest window, the system allows farmers to optimize the timing of produce sales relative to market demand, potentially improving income stability and reducing the estimated 20--40\% post-harvest losses that currently diminish their livelihoods \citep{fao2019}.
+
+    \textbf{For the agricultural technology community,} this work demonstrates the feasibility of deploying reinforcement learning on microcontrollers costing under \$5, challenging the prevailing assumption that RL-based control requires cloud infrastructure. The complete pipeline---from physics-based simulation through knowledge distillation to edge deployment---provides a replicable template for other agricultural control applications beyond tomato ripening, including controlled-atmosphere storage for bananas, mangoes, and other climacteric fruits.
+
+    \textbf{For the embedded systems community,} this study contributes empirical data on the fidelity-compression trade-off when distilling RL policies for microcontroller deployment. The state-space ablation study (7D vs.\ 16D vs.\ 20D) and the golden vector verification methodology offer practical guidance for practitioners designing edge-deployed decision systems with strict memory and latency constraints \citep{warden2019tinyml}.
+
+    \textbf{For food security policy,} the \$33 total bill-of-materials positions this system as a candidate for government agricultural extension programmes and NGO distribution, where the cost per unit is a decisive factor in adoption at scale.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% SECTION 1.7 CONCEPTUAL FRAMEWORK
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Conceptual Framework}
+    \label{sec:Conceptual Framework}
+
+    The conceptual framework of this study integrates three interconnected phases that collectively enable autonomous post-harvest ripening control at the edge. Figure~\ref{fig:conceptual_framework} illustrates the relationships between these phases.
+
+    \subsection{Phase 1: Simulation-Based Policy Training}
+
+    A physics-based digital twin simulates the thermodynamics of tomato ripening using a first-order ordinary differential equation (ODE) with Arrhenius temperature dependence. The RL agent interacts with this simulated environment over 1,000,000 training episodes, receiving state observations (temperature, humidity, ripeness index, time features) and learning to select actions (MAINTAIN, HEAT, COOL) that minimize the discrepancy between actual and target harvest timing. Domain randomization across six parameters (ripening rate, temperature variability, initial conditions) promotes policy robustness against real-world uncertainty.
+
+    \subsection{Phase 2: Policy Compression and Export}
+
+    The trained DQN teacher policy (containing $>$100,000 parameters in a 256$\times$256 network) is distilled into a compact 5,443-parameter student MLP (16$\rightarrow$64$\rightarrow$64$\rightarrow$3) through supervised learning on 100,000 state-action pairs generated by teacher rollouts. The distilled weights are exported as statically allocated C arrays, along with golden test vectors for on-device verification.
+
+    \subsection{Phase 3: Edge Deployment and Autonomous Control}
+
+    The C-exported student policy is compiled into the ESP32-S3 firmware alongside a FreeRTOS task scheduler that manages sensor acquisition, MLP inference, and actuator control. The system operates in a 15-minute decision cycle: reading environmental sensors, computing the optimal action via the student MLP (7~ms inference), and actuating the heating element or ventilation fan accordingly.
+
+    % Placeholder for conceptual framework figure
+    % \begin{figure}[ht]
+    %     \centering
+    %     \includegraphics[width=\textwidth]{images/conceptual_framework.png}
+    %     \caption{Conceptual framework of the Edge-RL system showing the three-phase pipeline from simulation-based training through knowledge distillation to autonomous edge deployment.}
+    %     \label{fig:conceptual_framework}
+    % \end{figure}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% SECTION 1.8 DEFINITION OF TERMS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Definition of Terms}
+    \label{sec:Definition of Terms}
+
+    \begin{description}
+        \item[Climacteric Fruit.] A category of fruits that exhibit a marked increase in respiration rate and ethylene production during ripening, enabling continued maturation after harvest. Tomatoes, bananas, and mangoes are representative examples, in contrast to non-climacteric fruits such as grapes and citrus \citep{prasad2018}.
+
+        \item[Continuous Chromatic Index ($X$).] A computed scalar value representing the ripeness stage of a tomato on a continuous scale, where $X = 1.0$ corresponds to fully green (immature) and $X = 0.0$ corresponds to fully red (ripe). The index is derived from spectral reflectance properties and serves as the primary variable in the ripening ODE.
+
+        \item[Deep Q-Network (DQN).] A reinforcement learning algorithm that approximates the optimal action-value function $Q^*(s, a)$ using a deep neural network, enabling agents to learn policies in environments with high-dimensional or continuous state spaces \citep{sutton2018}.
+
+        \item[Digital Twin.] A physics-based computational model that replicates the behaviour of a physical system, used in this study to simulate the thermodynamic and biochemical processes of tomato ripening for safe and efficient RL policy training.
+
+        \item[Domain Randomization.] A simulation technique in which environmental parameters are randomly varied during training episodes to produce policies that are robust to the inherent variability of real-world conditions, improving sim-to-real transfer.
+
+        \item[Edge Intelligence.] The paradigm of performing machine learning inference directly on edge devices (microcontrollers, embedded systems) rather than transmitting data to cloud servers, enabling real-time decision-making without network connectivity.
+
+        \item[Knowledge Distillation.] A model compression technique introduced by \citet{hinton2015distilling} in which a compact ``student'' neural network is trained to approximate the output distribution of a larger, more capable ``teacher'' model, achieving significant parameter reduction with minimal performance degradation.
+
+        \item[Policy Distillation.] The application of knowledge distillation specifically to reinforcement learning, where the student network learns to replicate the teacher's action-selection behaviour from a dataset of state-action pairs generated through teacher rollouts.
+
+        \item[Sim-to-Real Transfer.] The process of deploying a policy trained entirely in simulation to a physical system. The reality gap---the discrepancy between simulated and real dynamics---is a central challenge addressed in this study through domain randomization and conservative parameter calibration.
+    \end{description}

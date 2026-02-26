@@ -1,0 +1,66 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%---------------------------------------------------------------------%
+% Start of CHAPTER 5 CONCLUSION AND RECOMMENDATIONS
+%---------------------------------------------------------------------%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\chapter{Conclusion and Recommendations}
+    \label{ch:Conclusion}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% SECTION 5.1 CONCLUSION
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Conclusion}
+    \label{sec:Conclusion}
+
+    This study successfully developed and demonstrated \textit{Edge-RL}, a novel framework for autonomous post-harvest ripening control deployed entirely on a \$33 ESP32-S3 microcontroller. By integrating physics-based simulation, deep reinforcement learning, knowledge distillation, and embedded systems engineering into a unified pipeline, the system bridges the gap between complex learned control policies and the stringent resource constraints of edge hardware.
+
+    The following conclusions are drawn with respect to the research objectives:
+
+    \subsection{Digital Twin Construction and Validation}
+
+    A physics-based digital twin incorporating first-order Arrhenius kinetics with six-parameter domain randomization was developed and calibrated against empirical tomato ripening data. The calibrated ripening rate constant ($k_1 = 0.02$~day$^{-1}$~$^{\circ}$C$^{-1}$) accurately reproduces the 10--14 day green-to-red transition observed in Philippine tomato varieties at 20--25$^{\circ}$C. The simulator's Gymnasium-compatible API enabled efficient training at approximately 1,000 episodes per minute, demonstrating that physics-informed simulation provides a viable and practical alternative to costly and time-consuming experiments with real biological specimens.
+
+    \subsection{Policy Training and State-Space Design}
+
+    A DQN teacher policy trained for 1,000,000 timesteps learned a robust ripening control strategy that outperformed all baseline policies. The systematic state-space ablation study identified the 16D variant (with RGB colour statistics) as the optimal representation, achieving a 100\% harvest rate and mean timing error of 0.55 days---a 42\% improvement over the best baseline (Fixed-Day, 0.95 days). The ablation provides empirical guidance for practitioners designing edge-deployed perception pipelines: colour statistics offer meaningful information gain over scalar-only representations, while spatial pooling features provide diminishing returns in simulation.
+
+    \subsection{Policy Distillation and Model Compression}
+
+    Knowledge distillation compressed the 68,099-parameter teacher into a 5,443-parameter student MLP, achieving 97.8\% action fidelity with a 12.4$\times$ reduction in model size (from $\sim$270~KB to $\sim$21.8~KB). An optional INT8 quantization path further reduces model size to $\sim$6.8~KB, demonstrating that aggressive compression is feasible when the policy structure is sufficiently regular. The distillation pipeline produces a standalone C header file requiring no external ML runtime dependencies.
+
+    \subsection{Edge Deployment and Autonomous Operation}
+
+    The distilled policy was deployed on the ESP32-S3-CAM with 7~ms inference latency and 237~KB firmware size, occupying less than 10\% of available flash memory. Golden vector verification confirmed 20/20 exact action matches between the PyTorch reference and the on-device implementation, validating the entire sim-to-edge export chain. On-device closed-loop simulation demonstrated context-dependent control behaviour, confirming that the policy adapts its strategy based on the full 16-dimensional state rather than executing a trivial fixed-action rule.
+
+    \subsection{Significance and Implications}
+
+    The \$33 total bill-of-materials, combined with fully offline operation and sub-10~ms inference latency, positions Edge-RL as a technically viable candidate for democratizing precision post-harvest management in developing agricultural economies. The system demonstrates that the combination of simulation-based RL training, knowledge distillation, and embedded deployment constitutes a general-purpose pipeline applicable beyond tomato ripening to any agricultural control problem amenable to digital twin modelling.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% SECTION 5.2 RECOMMENDATIONS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Recommendations}
+    \label{sec:Recommendations}
+
+    Based on the findings and limitations of this study, the following recommendations are made for future research and development:
+
+    \begin{enumerate}
+        \item \textbf{Real Tomato Validation.} The most critical next step is conducting closed-loop experiments with physical tomatoes in the constructed ripening chamber. This requires calibrating the camera-based Chromatic Index against spectrometer-measured colour values, characterising the thermal dynamics of the physical enclosure, and comparing the agent's real-world performance against the simulation-derived metrics reported in this study. A minimum of 30 physical trials per cultivar is recommended to establish statistical significance.
+
+        \item \textbf{Hardware Design Refinement.} Given the emergent cooling-dominant strategy observed in simulation, future hardware iterations should prioritise effective passive cooling mechanisms (e.g., Peltier modules, improved ventilation design) over heating capacity. The current resistive heating element may be oversized for the actual control requirements, and redirecting cost toward active cooling could significantly expand the agent's operational envelope.
+
+        \item \textbf{On-Device Continual Learning.} The current system deploys a static, fixed policy that cannot adapt to site-specific conditions or new cultivars after deployment. Implementing lightweight on-device fine-tuning---for example, adjusting the output layer weights based on accumulated experience---would enable progressive adaptation without requiring re-training from scratch.
+
+        \item \textbf{Multi-Modal Sensing.} Integrating ethylene gas sensors (e.g., SGP30 or BME688) would provide a direct biochemical indicator of climacteric ripening onset, potentially improving state estimation accuracy beyond what visual and environmental features alone can provide. Ethylene concentration could serve as an additional input feature to the policy, enriching the decision-making context.
+
+        \item \textbf{Multi-Fruit Batch Management.} Extending the system to manage multiple fruits simultaneously would require either spatial partitioning (independent chambers) or multi-agent reinforcement learning approaches that account for inter-fruit ethylene signalling and variable maturity levels within a batch.
+
+        \item \textbf{Extended Field Deployment.} Conducting pilot deployments in actual smallholder farming environments (e.g., Iligan City, Lanao del Norte) would provide critical data on long-term hardware durability, user acceptance, maintenance requirements, and measurable impact on post-harvest loss rates and farmer income.
+
+        \item \textbf{Algorithm Comparison.} Evaluating alternative RL algorithms (PPO, A2C, SAC with continuous action spaces) against the DQN baseline would strengthen the ablation study and potentially identify algorithms better suited to the smooth, continuous dynamics of biological ripening processes.
+    \end{enumerate}

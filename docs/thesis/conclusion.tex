@@ -17,7 +17,7 @@ The system provides a cost-effective ($<$ \$33), offline-capable alternative to 
 Based on the findings and limitations of this study, we recommend the following for future development:
 
 \begin{enumerate}
-    \item \textbf{Hardware Refinement:} Given the emergent "heat-only" strategy, future iterations should remove the active cooling element to further reduce costs and power consumption, focusing solely on heating and ventilation.
+    \item \textbf{Hardware Refinement:} Given the emergent diurnal strategy that actively utilizes both heating and cooling to regulate the biological Arrhenius kinetics, future iterations of the physical chamber must ensure the passive ventilation system provides sufficient airflow to achieve the rapid -1$^{\circ}$C cooling drops demanded by the policy. If passive ventilation proves insufficient in extreme tropical climates, integrating a low-power active Peltier cooling element may be required to maintain the precise 0.67-day timing accuracy observed in simulation.
     \item \textbf{Continuous Learning:} Implement on-device fine-tuning to allow the agent to adapt to specific local conditions or new tomato varieties over time, rather than relying solely on the pre-trained static policy.
     \item \textbf{Multi-Modal Sensing:} Integrate ethylene gas sensors to provide a direct biochemical indicator of ripening, potentially improving the state estimation accuracy beyond visual and environmental data alone.
     \item \textbf{Field Deployment:} Conduct extended pilot testing in actual farm environments to evaluate long-term hardware durability and the system's impact on farmer income and post-harvest loss reduction at scale.
