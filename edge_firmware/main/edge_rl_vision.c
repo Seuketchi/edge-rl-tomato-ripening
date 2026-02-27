@@ -1,8 +1,8 @@
 /* ============================================================
- * edge_rl_vision.c — MobileNetV2 ONNX inference (stub) + RGB Stats
+ * edge_rl_vision.c — Direct ROI Pixel Statistics Extraction
  *
  * Extracts 9 RGB statistics (mean, std, mode) required by Variant B
- * and produces the Continuous Chromatic Index (X).
+ * and produces the Continuous Chromatic Index (X). No CNN inference.
  * ============================================================ */
 
 #include <string.h>

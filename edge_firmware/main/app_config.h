@@ -20,7 +20,7 @@
 #define TASK_STACK_TELEMETRY        4096   /* JSON formatting needs space */
 
 /* ---- Timing ---- */
-#define CAPTURE_INTERVAL_MS         (30 * 60 * 1000)  /* 30 minutes */
+#define CAPTURE_INTERVAL_MS         (15 * 60 * 1000)  /* 15 minutes */
 #define SENSOR_INTERVAL_MS          (60 * 1000)        /* 1 minute   */
 #define TELEMETRY_INTERVAL_MS       (5  * 1000)        /* 5 seconds  */
 
