@@ -69,15 +69,11 @@
     The specific objectives of this study are as follows:
 
     \begin{enumerate}
-        \item To design and implement a physics-based digital twin simulator for tomato post-harvest ripening, incorporating first-order Arrhenius kinetics with domain randomization across six environmental and biological parameters.
+        \item To design a physics-based digital twin of tomato post-harvest ripening incorporating Arrhenius kinetics and six-parameter domain randomization, and to train a Deep Q-Network (DQN) policy within this simulator that minimises harvest timing error while preserving fruit quality.
 
-        \item To train a Deep Q-Network (DQN) teacher policy in the simulated environment that learns to minimize harvest timing error while maintaining fruit quality within acceptable bounds.
+        \item To distil the trained DQN teacher into a compact student multilayer perceptron suitable for microcontroller deployment, and to evaluate the fidelity--compression trade-off across three state-space representations (7D, 16D, and 20D variants) via ablation study.
 
-        \item To distill the trained DQN policy into a compact student multilayer perceptron suitable for microcontroller deployment, and to evaluate the fidelity-compression trade-off across multiple state-space representations (7D, 16D, and 20D variants).
-
-        \item To export the distilled policy as pure C arrays and deploy it on the ESP32-S3 microcontroller, verifying functional equivalence between the PyTorch reference implementation and the on-device C inference through golden vector testing.
-
-        \item To evaluate the deployed system's performance by comparing the learned policy against fixed-rule baselines (Random, Fixed-Day, Fixed-Stage) across standardized evaluation episodes, quantifying improvements in harvest timing accuracy, fruit quality preservation, and cumulative reward.
+        \item To deploy the distilled policy on the ESP32-S3 microcontroller with golden-vector-verified numerical equivalence, and to evaluate overall system performance against fixed-rule baselines (Random, Fixed-Day, Fixed-Stage5) in terms of harvest timing accuracy, cumulative reward, and on-device resource utilisation.
     \end{enumerate}
 
 
