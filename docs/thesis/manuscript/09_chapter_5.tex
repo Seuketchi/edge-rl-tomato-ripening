@@ -25,7 +25,7 @@
 
     \subsection{Policy Training and State-Space Design}
 
-    A DQN teacher policy trained for 1,000,000 timesteps learned a robust ripening control strategy that outperformed all baseline policies. The systematic state-space ablation study identified the 16D variant (with RGB colour statistics) as the optimal representation, achieving a 100\% harvest rate and mean timing error of 0.55 days---a 42\% improvement over the best baseline (Fixed-Day, 0.95 days). The ablation provides empirical guidance for practitioners designing edge-deployed perception pipelines: colour statistics offer meaningful information gain over scalar-only representations, while spatial pooling features provide diminishing returns in simulation.
+    A DQN teacher policy trained for 1,000,000 timesteps learned a robust ripening control strategy that outperformed all baseline policies in composite reward. The systematic state-space ablation study identified the 16D variant (with RGB colour statistics) as the optimal representation, achieving a 100\% harvest rate and mean timing error of 1.50 days with the highest mean reward ($+4.05$) among the three variants. In comparative evaluation against baselines, the deployed Edge-RL policy achieved a mean timing error of 0.67 days and the highest total reward ($+2.57$), demonstrating effective optimisation of the composite objective balancing quality, timing, and safety. The ablation provides empirical guidance for practitioners designing edge-deployed perception pipelines: colour statistics offer meaningful information gain over scalar-only representations, while spatial pooling features provide diminishing returns in simulation.
 
     \subsection{Policy Distillation and Model Compression}
 
@@ -50,7 +50,7 @@
     Based on the findings and limitations of this study, the following recommendations are made for future research and development:
 
     \begin{enumerate}
-        \item \textbf{Real Tomato Validation.} The most critical next step is conducting closed-loop experiments with physical tomatoes in the constructed ripening chamber. This requires calibrating the camera-based Chromatic Index against spectrometer-measured colour values, characterising the thermal dynamics of the physical enclosure, and comparing the agent's real-world performance against the simulation-derived metrics reported in this study. A minimum of 30 physical trials per cultivar is recommended to establish statistical significance.
+        \item \textbf{Real Tomato Validation.} The most critical next step is conducting closed-loop experiments with physical tomatoes in the constructed ripening chamber. This requires calibrating the camera-based Chromatic Index against spectrometer-measured colour values, characterising the thermal dynamics of the physical enclosure, and comparing the agent's real-world performance against the simulation-derived metrics reported in this study. An initial set of 5--10 physical trials per cultivar is recommended as a proof-of-concept validation, with subsequent expansion to larger sample sizes as resources permit.
 
         \item \textbf{Hardware Design Refinement.} Given the emergent cooling-dominant strategy observed in simulation, future hardware iterations should prioritise effective passive cooling mechanisms (e.g., Peltier modules, improved ventilation design) over heating capacity. The current resistive heating element may be oversized for the actual control requirements, and redirecting cost toward active cooling could significantly expand the agent's operational envelope.
 

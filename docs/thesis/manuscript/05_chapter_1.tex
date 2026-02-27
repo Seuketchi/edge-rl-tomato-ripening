@@ -136,27 +136,31 @@
 
         \subsubsection{Simulation-Only Training and Evaluation}
 
-        The RL policy is trained and evaluated entirely within a physics-based digital twin. While domain randomization is applied across six parameters to improve robustness, the policy has not been validated against real physical tomatoes in a closed-loop hardware experiment. All reported performance metrics (timing error, quality scores, reward) are simulation-derived.
+        The RL policy is trained and evaluated entirely within a physics-based digital twin. While domain randomization is applied across six parameters to improve robustness, the policy has not been validated against real physical tomatoes in a closed-loop hardware experiment. All reported performance metrics (timing error, quality scores, reward) are simulation-derived. Conducting 5--10 preliminary real-fruit trials in the physical ripening chamber would provide initial validation of sim-to-real transfer fidelity and identify parameter mismatches requiring recalibration.
+
+        \subsubsection{Formula-Based Ripeness Proxy}
+
+        The continuous chromatic index ($X = \frac{G}{R + G + \epsilon}$) serves as a formula-based proxy for ripeness rather than a precisely calibrated biological measurement. Because it relies entirely on macroscopic surface colour, the index is sensitive to external lighting conditions and provides an indirect estimation of maturity rather than a direct measurement of internal lycopene content.
 
         \subsubsection{Synthetic Colour Statistics}
 
-        The RGB colour statistics (mean, standard deviation, mode) used in the 16D and 20D state-space variants are generated synthetically by the simulator's observation model. Real camera-derived statistics will exhibit different noise characteristics, lens distortion, white balance dependencies, and lighting variability that are not fully captured by the synthetic model.
+        The RGB colour statistics (mean, standard deviation, mode) used in the 16D and 20D state-space variants are generated synthetically by the simulator's observation model. Real camera-derived statistics will exhibit different noise characteristics, lens distortion, white balance dependencies, and lighting variability that are not fully captured by the synthetic model. Future work should characterise the distribution shift between synthetic and real camera statistics and, if necessary, inject empirically measured noise profiles into the simulator.
 
         \subsubsection{No Active Cooling}
 
-        The absence of a compressor or Peltier module means the system cannot cool below ambient temperature. In tropical climates where $T_{\text{ambient}}$ may exceed 30$^{\circ}$C, the agent's ability to slow ripening is limited to the passive MAINTAIN action. The emergent cooling-dominant strategy observed in simulation may not transfer directly to hardware without active cooling capability.
+        The absence of a compressor or Peltier module means the system cannot cool below ambient temperature. In tropical climates where $T_{\text{ambient}}$ may exceed 30$^{\circ}$C, the agent's ability to slow ripening is limited to the passive MAINTAIN action. The emergent cooling-dominant strategy observed in simulation may not transfer directly to hardware without active cooling capability. Integrating a low-cost Peltier module (approximately \$5--\$10) would enable active cooling below ambient, significantly expanding the agent's control envelope.
 
         \subsubsection{No Ethylene Sensing}
 
-        The system does not incorporate ethylene gas sensors, which provide a direct biochemical indicator of climacteric ripening onset. Ripeness estimation relies solely on visual (RGB) and environmental (temperature, humidity) features, omitting a physiologically important signal.
+        The system does not incorporate ethylene gas sensors, which provide a direct biochemical indicator of climacteric ripening onset. Ripeness estimation relies solely on visual (RGB) and environmental (temperature, humidity) features, omitting a physiologically important signal. Adding an SGP30 or BME688 gas sensor (approximately \$5) as an additional state-space dimension could improve ripeness estimation accuracy, particularly during the climacteric spike that precedes visible colour change.
 
         \subsubsection{Fixed Policy at Deployment}
 
-        The student MLP architecture (64$\times$64, ReLU) is fixed at compile time and embedded in the firmware image. On-device fine-tuning, continual learning, or over-the-air policy updates are not supported in the current implementation.
+        The student MLP architecture (64$\times$64, ReLU) is fixed at compile time and embedded in the firmware image. On-device fine-tuning, continual learning, or over-the-air policy updates are not supported in the current implementation. Lightweight on-device adaptation---such as adjusting only the output layer weights based on accumulated deployment experience---would enable progressive site-specific calibration without full retraining.
 
         \subsubsection{Single-Fruit Operation}
 
-        The current system manages a single fruit per chamber. Real-world applications involving batch ripening of multiple fruits at different maturity stages would require multi-agent coordination or aggregate state representations not addressed in this work.
+        The current system manages a single fruit per chamber. Real-world applications involving batch ripening of multiple fruits at different maturity stages would require multi-agent coordination or aggregate state representations not addressed in this work. Spatial partitioning into independent chambers or multi-agent RL formulations could extend the system to batch operations.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -198,13 +202,39 @@
 
     The C-exported student policy is compiled into the ESP32-S3 firmware alongside a FreeRTOS task scheduler that manages sensor acquisition, MLP inference, and actuator control. The system operates in a 15-minute decision cycle: reading environmental sensors, computing the optimal action via the student MLP (7~ms inference), and actuating the heating element or ventilation fan accordingly.
 
-    % Placeholder for conceptual framework figure
-    % \begin{figure}[ht]
-    %     \centering
-    %     \includegraphics[width=\textwidth]{images/conceptual_framework.png}
-    %     \caption{Conceptual framework of the Edge-RL system showing the three-phase pipeline from simulation-based training through knowledge distillation to autonomous edge deployment.}
-    %     \label{fig:conceptual_framework}
-    % \end{figure}
+    \begin{figure}[ht]
+        \centering
+        \begin{tikzpicture}[node distance=0.8cm, auto,
+            phase/.style={rectangle, draw, fill=blue!8, text width=4.0cm, text centered, rounded corners, minimum height=2.2cm, font=\footnotesize},
+            arrow/.style={-Stealth, thick, shorten >=2pt, shorten <=2pt},
+        ]
+            \node [phase] (p1) {
+                \textbf{Phase 1}\\[2pt]
+                Simulation-Based\\Policy Training\\[4pt]
+                {\scriptsize Digital Twin (ODE)}\\
+                {\scriptsize DQN Teacher, $10^6$ steps}\\
+                {\scriptsize Domain Randomization}
+            };
+            \node [phase, right=1.2cm of p1] (p2) {
+                \textbf{Phase 2}\\[2pt]
+                Policy Compression\\and Export\\[4pt]
+                {\scriptsize Knowledge Distillation}\\
+                {\scriptsize 68K $\to$ 5.4K params}\\
+                {\scriptsize C Array Export}
+            };
+            \node [phase, right=1.2cm of p2] (p3) {
+                \textbf{Phase 3}\\[2pt]
+                Edge Deployment and\\Autonomous Control\\[4pt]
+                {\scriptsize ESP32-S3, FreeRTOS}\\
+                {\scriptsize 7\,ms Inference}\\
+                {\scriptsize Golden Vector Verify}
+            };
+            \draw [arrow] (p1) -- node[above, font=\scriptsize] {Student MLP} (p2);
+            \draw [arrow] (p2) -- node[above, font=\scriptsize] {C Header} (p3);
+        \end{tikzpicture}
+        \caption{Conceptual framework of the Edge-RL system. The three-phase pipeline progresses from simulation-based reinforcement learning training through knowledge distillation and model compression to autonomous edge deployment on the ESP32-S3 microcontroller.}
+        \label{fig:conceptual_framework}
+    \end{figure}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
