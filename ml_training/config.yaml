@@ -6,7 +6,9 @@ project:
   seed: 42
   output_dir: "outputs"
 
-# --- Vision Model ---
+# --- Vision Model (DEPRECATED) ---
+# NOTE: The CNN vision model was replaced by direct pixel statistics computation.
+# This configuration block is kept only for historical reproducibility of the ablations.
 vision:
   # Model
   model_name: "mobilenetv2"       # mobilenetv2 | mobilenetv3_small | efficientnet_lite0

@@ -1,12 +1,12 @@
 # Edge-RL Tomato Digital Twin
 
-An end-to-end framework for autonomous tomato ripening control, integrating Edge AI Computer Vision, Reinforcement Learning (RL), and a Digital Twin visualization system.
+An end-to-end framework for autonomous tomato ripening control, integrating direct pixel-based feature extraction, Reinforcement Learning (DQN), and a Digital Twin visualization system — deployed entirely on a $33 ESP32-S3 microcontroller.
 
 ## 📌 Project Overview
-This project targets **precision agriculture** by automating the tomato ripening process. It uses a **computer vision** model to detect ripeness stages from camera inputs and an **RL agent (SAC)** to control environmental parameters (temperature/humidity). The entire pipeline is simulated and visualized via a **Digital Twin** web interface.
+This project targets **precision agriculture** by automating the tomato ripening process. It uses **direct pixel statistics** (RGB mean, std, mode, and Chromatic Index) for ripeness estimation and a **DQN-distilled MLP policy** to control environmental temperature. The entire pipeline is simulated and visualized via a **Digital Twin** web interface.
 
 ## 🚀 Key Features
-*   **Computer Vision**: MobileNetV2-based ripeness classifier (4 classes).
+*   **Computer Vision**: Direct pixel-based Chromatic Index extraction — no CNN, microsecond computation.
 *   **Reinforcement Learning**: DQN agent distilled to a 64×64 MLP student (97.8% fidelity).
 *   **Digital Twin**: Real-time visualization of ripening process and agent decisions.
 *   **ESP32-S3 Deployment**: Pure-C inference on-device — 237 KB binary, no ML library needed.
@@ -15,8 +15,8 @@ This project targets **precision agriculture** by automating the tomato ripening
 
 1.  **Clone the repository**:
     ```bash
-    git clone https://github.com/your-username/edge-rl-tomato-twin.git
-    cd edge-rl-tomato-twin
+    git clone https://github.com/Seuketchi/edge-rl-tomato-ripening.git
+    cd edge-rl-tomato-ripening
     ```
 
 2.  **Install dependencies**:
@@ -28,9 +28,7 @@ This project targets **precision agriculture** by automating the tomato ripening
 
 ```
 ├── ml_training/           # Machine Learning Pipeline
-│   ├── vision/            # Computer Vision Module
-│   │   ├── train.py       # Train ripeness classifier
-│   │   └── download_dataset.py
+│   ├── vision/            # (Legacy — direct pixel extraction replaced CNN)
 │   ├── rl/                # Reinforcement Learning Module
 │   │   ├── train_dqn.py   # Train DQN agent
 │   │   ├── distill.py     # Distill teacher → student MLP
@@ -42,6 +40,7 @@ This project targets **precision agriculture** by automating the tomato ripening
 │   ├── main/
 │   │   ├── app_main.c     # Entry point, FreeRTOS task creation
 │   │   ├── edge_rl_policy.c   # Pure-C MLP forward pass
+│   │   ├── edge_rl_vision.c   # Direct pixel RGB statistics extraction
 │   │   ├── task_policy.c  # RL inference task + ODE simulation
 │   │   ├── policy_weights.h   # Auto-generated FP32 weights
 │   │   └── golden_vectors.h   # 20 test vectors for validation
@@ -57,20 +56,19 @@ This project targets **precision agriculture** by automating the tomato ripening
 
 ## 💻 Usage
 
-### 1. Computer Vision
-Train the ripeness classifier:
-```bash
-# Download dataset first
-python ml_training/vision/download_dataset.py
-
-# Train the model
-python ml_training/vision/train.py
-```
-
-### 2. Reinforcement Learning
+### 1. Reinforcement Learning
 Train the control policy:
 ```bash
 python ml_training/rl/train_dqn.py
+```
+
+### 2. Export & Distill
+```bash
+# Distill teacher → student
+python ml_training/rl/distill.py
+
+# Export student weights to C headers
+PYTHONPATH=. python ml_training/rl/export_policy_c.py --verify
 ```
 
 ### 3. Digital Twin Demo
@@ -89,25 +87,20 @@ python digital_twin_viz/server.py
 | MCU | Dual-core Xtensa LX7, up to 240 MHz |
 | Flash | 16 MB |
 | PSRAM | 8 MB |
-| Camera | OV2640 (2MP) / OV5640 (5MP) |
+| Camera | OV2640 (2MP) |
 | Wireless | WiFi 802.11 b/g/n, Bluetooth 5.0 LE |
 | Interface | USB Type-C (programming + power) |
-| Storage | MicroSD slot (up to 32 GB) |
-| Dimensions | 54 mm × 25 mm × 13 mm |
 | Op. Temp | -20°C to +70°C |
 
-#### Export Weights and Flash
+#### Build and Flash
 ```bash
-# 1. Export student weights to C headers
-PYTHONPATH=. python ml_training/rl/export_policy_c.py --verify
-
-# 2. Build firmware
+# 1. Build firmware
 source ~/esp/v5.5.2/esp-idf/export.sh
 cd edge_firmware
 idf.py set-target esp32s3
 idf.py build
 
-# 3. Flash and monitor (connect board via USB-C)
+# 2. Flash and monitor (connect board via USB-C)
 idf.py -p /dev/ttyUSB0 flash monitor
 ```
 

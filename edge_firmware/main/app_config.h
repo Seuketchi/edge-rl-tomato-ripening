@@ -47,15 +47,11 @@
 /* ---- DHT22 sensor ---- */
 #define DHT22_GPIO                  GPIO_NUM_32
 
-/* ---- Vision model ---- */
+/* ---- Vision module ---- */
 #define VISION_INPUT_W              96
 #define VISION_INPUT_H              96
-#define VISION_NUM_CLASSES          4
-#define VISION_CONFIDENCE_THRESH    0.70f  /* minimum confidence to act */
 #define CLASS_UNRIPE                0
 #define CLASS_RIPE                  1
-#define CLASS_OLD                   2
-#define CLASS_DAMAGED               3
 
 /* ---- RL policy ---- */
 #define POLICY_NUM_ACTIONS          3   /* maintain, heat(+ΔT), cool(heater off) */

@@ -36,9 +36,9 @@ static esp_err_t edge_rl_camera_init(void)
         .xclk_freq_hz = CAM_XCLK_FREQ_HZ,
         .ledc_timer   = LEDC_TIMER_0,
         .ledc_channel = LEDC_CHANNEL_0,
-        .pixel_format = PIXFORMAT_JPEG,
+        .pixel_format = PIXFORMAT_RGB565,
         .frame_size   = CAM_FRAME_SIZE,
-        .jpeg_quality = 12,
+        .jpeg_quality = 12, /* Ignored for RGB565 */
         .fb_count     = 2,
         .fb_location  = CAMERA_FB_IN_PSRAM,
         .grab_mode    = CAMERA_GRAB_WHEN_EMPTY,

@@ -21,29 +21,21 @@ typedef struct {
     float chromatic_x;
 } vision_stats_t;
 
-esp_err_t edge_rl_vision_infer(const uint8_t *jpg_buf, size_t jpg_len,
+esp_err_t edge_rl_vision_infer(const uint8_t *fb_buf, size_t fb_len,
                                 uint8_t *out_class, float *out_confidence,
                                 vision_stats_t *out_stats)
 {
-    if (jpg_buf == NULL || out_class == NULL || out_confidence == NULL || out_stats == NULL) {
+    if (fb_buf == NULL || out_class == NULL || out_confidence == NULL || out_stats == NULL) {
         return ESP_ERR_INVALID_ARG;
     }
 
-    /* 1. Decode JPEG to RGB888 */
-    size_t rgb_len = VISION_INPUT_W * VISION_INPUT_H * 3;
-    uint8_t *rgb_buf = malloc(rgb_len);
-    if (!rgb_buf) {
-        ESP_LOGE(TAG_VISION, "Failed to allocate RGB buffer");
-        return ESP_ERR_NO_MEM;
+    int expected_len = VISION_INPUT_W * VISION_INPUT_H * 2; /* 2 bytes per pixel for RGB565 */
+    if (fb_len != expected_len) {
+        ESP_LOGE(TAG_VISION, "Unexpected fb_len: expected %d, got %zu", expected_len, fb_len);
+        return ESP_ERR_INVALID_SIZE;
     }
 
-    if (!fmt2rgb888(jpg_buf, jpg_len, PIXFORMAT_JPEG, rgb_buf)) {
-        ESP_LOGE(TAG_VISION, "JPEG to RGB888 decode failed");
-        free(rgb_buf);
-        return ESP_FAIL;
-    }
-
-    /* 2. Compute RGB Statistics */
+    /* 1. Compute RGB Statistics directly from RGB565 buffer */
     uint32_t sum[3] = {0};
     uint64_t sum_sq[3] = {0};
     uint32_t hist[3][16] = {0}; // 16-bin histogram for mode
@@ -51,9 +43,22 @@ esp_err_t edge_rl_vision_infer(const uint8_t *jpg_buf, size_t jpg_len,
     int num_pixels = VISION_INPUT_W * VISION_INPUT_H;
 
     for (int i = 0; i < num_pixels; i++) {
-        uint8_t r = rgb_buf[i * 3 + 0];
-        uint8_t g = rgb_buf[i * 3 + 1];
-        uint8_t b = rgb_buf[i * 3 + 2];
+        /* RGB565 is little-endian on ESP32 by default in esp32-camera,
+         * but typically stored as high-byte low-byte. 
+         * The standard is: Byte 0 (High) = RRRRRGGG, Byte 1 (Low) = GGGBBBBB
+         * esp32-camera usually returns swapped bytes depending on the sensor, 
+         * let's assume standard RGB565 packed format (16-bit word).
+         */
+        uint16_t pixel = (fb_buf[i * 2] << 8) | fb_buf[i * 2 + 1];
+        
+        uint8_t r_5 = (pixel >> 11) & 0x1F;
+        uint8_t g_6 = (pixel >> 5)  & 0x3F;
+        uint8_t b_5 = pixel         & 0x1F;
+
+        /* Expand to 8-bit */
+        uint8_t r = (r_5 << 3) | (r_5 >> 2);
+        uint8_t g = (g_6 << 2) | (g_6 >> 4);
+        uint8_t b = (b_5 << 3) | (b_5 >> 2);
 
         sum[0] += r; sum[1] += g; sum[2] += b;
         sum_sq[0] += (uint64_t)r * r; sum_sq[1] += (uint64_t)g * g; sum_sq[2] += (uint64_t)b * b;
@@ -89,9 +94,7 @@ esp_err_t edge_rl_vision_infer(const uint8_t *jpg_buf, size_t jpg_len,
     float g_mean = out_stats->mean[1];
     out_stats->chromatic_x = g_mean / (r_mean + g_mean + 1e-6f);
 
-    free(rgb_buf);
-
-    /* STUB: ML inference */
+    /* Heuristic classification */
     if (out_stats->chromatic_x > 0.55f) *out_class = CLASS_UNRIPE;
     else *out_class = CLASS_RIPE;
     *out_confidence = 0.85f;

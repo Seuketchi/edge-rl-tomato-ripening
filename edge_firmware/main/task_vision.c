@@ -1,12 +1,10 @@
 /* ============================================================
- * task_vision.c — Vision inference task (stub)
+ * task_vision.c — Vision inference task 
  *
- * Waits for a frame from g_camera_queue, runs the INT8
- * MobileNetV2 classifier via ESP-DL, writes result to g_state.
+ * Waits for a frame from g_camera_queue, computes the direct
+ * pixel RGB statistics and Chromatic Index via edge_rl_vision_infer.
  *
- * NOTE: The ESP-DL model call (edge_rl_vision_infer) is
- * implemented in components/edge_rl_vision once model_data.h
- * is generated from the export pipeline (Step 4).
+ * NOTE: The implementation is in edge_rl_vision.c.
  * ============================================================ */
 
 #include "freertos/FreeRTOS.h"

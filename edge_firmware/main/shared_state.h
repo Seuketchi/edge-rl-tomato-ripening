@@ -21,7 +21,7 @@ typedef struct {
     float   rgb_mean[3];       /* RGB channel means */
     float   rgb_std[3];        /* RGB channel standard deviations */
     float   rgb_mode[3];       /* RGB channel modes */
-    float   class_confidence;  /* softmax probability of top class */
+    float   class_confidence;  /* confidence heuristic (hardcoded value) */
     bool    vision_valid;      /* false until first successful inference */
 
     /* --- Policy output (from task_policy) --- */

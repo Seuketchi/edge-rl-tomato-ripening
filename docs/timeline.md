@@ -32,7 +32,7 @@ Week 7-8  ░░░░░░░░░░░░████  Validation & Thesis 
 
 | Task | Deliverable |
 |---|---|
-| Train MobileNetV2 0.35x on Kaggle dataset | Model with >88% val accuracy |
+| Implement Direct Pixel Feature Extraction | Chromatic Index X matches biology |
 | Data augmentation pipeline (rotation, flip, color jitter, crop) | Augmentation config file |
 | Fine-tune on grocery-store images (few-shot, LR=1e-5) | >85% on grocery-store test set |
 | Quantize to INT8 (TFLite or ONNX) | `model.tflite` < 300KB |
@@ -70,7 +70,7 @@ Week 7-8  ░░░░░░░░░░░░████  Validation & Thesis 
 
 | Task | Deliverable |
 |---|---|
-| Integrate vision model into ESP-IDF firmware | Classification output on serial monitor |
+| Integrate direct pixel extraction into firmware | Chromatic Index X output on serial |
 | Integrate RL policy inference | Action recommendations displayed |
 | Implement DHT22 sensor reading task | Temperature + humidity logged |
 | Implement camera capture task (30-min intervals) | Automated image capture working |
@@ -122,7 +122,7 @@ Week 7-8  ░░░░░░░░░░░░████  Validation & Thesis 
 
 | Risk | Probability | Impact | Mitigation |
 |---|---|---|---|
-| Vision model doesn't fit on ESP32-S3 | Medium | High | Use smaller MobileNetV2 variant; proven on ESP32 |
+| Memory constraints on ESP32-S3 | Low | High | Use distilled MLP + pure C math; avoids ML runtime entirely |
 | RL policy doesn't transfer from sim | Medium | Medium | Have fixed-rule baseline as fallback; still shows edge inference |
 | Hardware delivery delays | Low | High | Order in advance; all components are standard |
 | Kaggle dataset insufficient quality | Low | Medium | Multiple Kaggle tomato datasets available; combine if needed |
@@ -132,7 +132,7 @@ Week 7-8  ░░░░░░░░░░░░████  Validation & Thesis 
 ## Minimum Viable Thesis (If Behind Schedule)
 
 If significantly behind by Week 5, the **minimum deliverable** thesis demonstrates:
-1. ✅ Vision model running on ESP32-S3 with real-time classification
+1. ✅ Embedded feature extraction running on ESP32-S3 with real-time estimation
 2. ✅ RL policy trained in simulation with documented performance
 3. ✅ At least 1 real-world validation batch
 4. ⬜ RL edge deployment (can present simulation results only)

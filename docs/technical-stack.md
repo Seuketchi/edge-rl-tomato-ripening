@@ -63,16 +63,14 @@ pyyaml>=6.0
 tqdm>=4.66.0
 ```
 
-## Vision Model Options (Ranked by ESP32 Feasibility)
+## Vision Pipeline (Ranked by ESP32 Feasibility)
 
-| Model | Size (INT8) | Accuracy (est.) | ESP32-S3 Support | Recommendation |
+| Approach | Size | Accuracy (est.) | ESP32-S3 Support | Recommendation |
 |---|---|---|---|---|
-| MobileNetV2 0.35x | ~200KB | ~85% | ✅ Proven | **Primary choice** |
-| EfficientNet-Lite0 | ~350KB | ~88% | ✅ Proven | Backup choice |
-| MobileNetV3-Small | ~250KB | ~87% | ✅ Proven | Alternative |
-| EdgeViT-XXS | ~280KB | ~90% | ⚠️ Unproven on ESP32 | Risky — avoid |
+| Direct Pixel Statistics | ~1KB | Exact Math | ✅ Proven | **Primary choice** |
+| CNN (MobileNetV2) | ~200KB | ~85% | ✅ Proven | Deprecated (covariate shift) |
 
-> **Recommendation:** Start with MobileNetV2 0.35x for fastest path to working system. Upgrade to EfficientNet-Lite0 only if accuracy is insufficient.
+> **Recommendation:** Use Direct Pixel RGB extraction. It removes the need for an ML runtime, avoids INT8 quantization loss, and perfectly matches the simulator.
 
 ## RL Configuration
 

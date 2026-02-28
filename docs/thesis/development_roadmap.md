@@ -16,7 +16,6 @@ Based on reviewing the full thesis, codebase, and related literature. Below are 
 | ESP32-S3 pure-C inference | ✅ Done | 7ms latency, 237KB binary |
 | Golden vector verification | ✅ Done | 20/20 match |
 | On-device ODE simulation | ✅ Done | 3-phase test passing |
-| MobileNetV2 vision pipeline | ⚠️ Config exists | Not validated end-to-end on device |
 | Real tomato hardware test | ❌ Not done | All results are sim-based |
 | INT8 quantization | ❌ Mentioned in conclusion | Deployment uses FP32 |
 
@@ -62,16 +61,7 @@ This turns a "feasibility" story into an **"autonomous solar-powered deployment"
 ## 🟡 Medium Effort (2–4 weeks each)
 
 ### 4. End-to-End Vision Pipeline on ESP32
-The MobileNetV2 config exists but isn't validated on-device. This is the **biggest gap** between your thesis claims and what's actually running.
-
-**Options (pick one):**
-| Approach | Model Size | Inference Time | Effort |
-|---|---|---|---|
-| ESP-DL (Espressif native) | ~200KB INT8 | ~100ms | Medium |
-| TFLite Micro | ~300KB INT8 | ~150ms | Medium |
-| Skip CNN, use color histogram | ~0KB | ~5ms | Low |
-
-**Recommendation:** Start with the color histogram approach (compute RGB stats directly in C from the camera buffer). This aligns with your Variant B state space which already uses `C_μ, C_σ, C_mode`. You don't actually *need* a CNN if you just extract color statistics.
+The pipeline is now based on Direct Pixel feature extraction. This matches the biological setup and uses microsecond logic without needing ESP-DL memory footprint. Make sure that the camera initialization (I2C) and pin allocations are properly resolved by integrating it with real tomatoes.
 
 ---
 

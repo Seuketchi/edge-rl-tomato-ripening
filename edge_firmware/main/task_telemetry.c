@@ -17,8 +17,8 @@
 #include "app_config.h"
 #include "shared_state.h"
 
-static const char *CLASS_NAMES[VISION_NUM_CLASSES] = {
-    "unripe", "ripe", "old", "damaged"
+static const char *CLASS_NAMES[2] = {
+    "unripe", "ripe"
 };
 
 static const char *ACTION_NAMES[POLICY_NUM_ACTIONS] = {
