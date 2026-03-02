@@ -28,16 +28,15 @@ Week 7-8  ░░░░░░░░░░░░████  Validation & Thesis 
 
 ## Week 2: Vision Model Training
 
-**Goal:** Quantized vision model achieving ≥85% accuracy
+**Goal:** Working vision pipeline with direct pixel feature extraction
 
 | Task | Deliverable |
 |---|---|
-| Implement Direct Pixel Feature Extraction | Chromatic Index X matches biology |
-| Data augmentation pipeline (rotation, flip, color jitter, crop) | Augmentation config file |
-| Fine-tune on grocery-store images (few-shot, LR=1e-5) | >85% on grocery-store test set |
-| Quantize to INT8 (TFLite or ONNX) | `model.tflite` < 300KB |
-| Export as C array for ESP32 embedding | `model_data.h` ready for firmware |
-| Evaluate: confusion matrix, per-class accuracy | Thesis figures saved |
+| Implement Direct Pixel Feature Extraction | Chromatic Index X = G/(R+G) matches biology |
+| Verify RGB stats (mean/std/mode) on sample images | Stats match Python reference |
+| Implement 60% centre crop for fruit isolation | Consistent ROI selection |
+| Validate Chromatic Index tracks colour change | X decreases monotonically during ripening |
+| Integrate with simulator observation space | 16D Variant B state vector |
 
 ## Week 3: Digital Twin & RL Training
 
@@ -48,7 +47,7 @@ Week 7-8  ░░░░░░░░░░░░████  Validation & Thesis 
 | Implement ripening physics simulator | `simulator.py` matching dR/dt model |
 | Wrap simulator as Gymnasium environment | `TomatoRipeningEnv` class |
 | Implement reward function (quality - timing error - energy) | Tuned reward weights |
-| Train SAC policy (500K steps) | Trained policy with >80% sim success rate |
+| Train DQN policy (500K steps) | Trained policy with >80% sim success rate |
 | Evaluate against baselines (fixed-rule, random) | Comparison table for thesis |
 | Ablation: vary environment parameters | Robustness analysis |
 
@@ -59,8 +58,8 @@ Week 7-8  ░░░░░░░░░░░░████  Validation & Thesis 
 | Task | Deliverable |
 |---|---|
 | Distill teacher → student MLP (256×256 → 64×64) | Student retains >95% of teacher performance |
-| Quantize student to INT8 | `policy.tflite` ~35KB |
-| Export as C array | `policy_data.h` ready for firmware |
+| Export student as FP32 C header | `policy_weights.h` ~22KB |
+| Generate golden test vectors (20 pairs) | `golden_vectors.h` for on-device verification |
 | Validate distilled policy in simulation | Performance comparison logged |
 | Begin thesis writing (Chapters 1-2) | Draft of Introduction + Literature Review |
 

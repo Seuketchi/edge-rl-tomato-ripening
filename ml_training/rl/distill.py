@@ -26,7 +26,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import yaml
 from stable_baselines3 import DQN
 
@@ -46,8 +45,8 @@ class StudentPolicy(nn.Module):
 
     def __init__(
         self,
-        state_dim: int = 9,
-        action_dim: int = 4,
+        state_dim: int = 16,
+        action_dim: int = 3,
         hidden_sizes: list[int] | None = None,
     ) -> None:
         super().__init__()
@@ -361,7 +360,7 @@ def main() -> None:
 
     # Export to ONNX
     print("\n--- Exporting to ONNX ---")
-    state_dim = 9  # from environment
+    state_dim = 16  # Variant B: 16D observation
     onnx_path = output_dir / "rl_policy.onnx"
     try:
         export_student_onnx(student, state_dim, onnx_path)

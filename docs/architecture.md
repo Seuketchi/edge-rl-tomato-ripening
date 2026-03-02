@@ -14,18 +14,17 @@ Edge-RL follows a **two-layer architecture** (simplified from three-layer):
 │  │ Simulator    │→ │ (SB3)       │→ │ & Quantize   │ │
 │  └─────────────┘  └─────────────┘  └──────┬───────┘ │
 │                                            │         │
-│  ┌─────────────┐  ┌─────────────┐          │         │
-│  │ Kaggle Data  │→ │ Vision Model│→─────────┤         │
-│  │ + Augment    │  │ Training    │          │         │
-│  └─────────────┘  └─────────────┘          │         │
+│                                            │         │
+│  (No CNN training — direct pixel stats)    │         │
+│                                            │         │
 └────────────────────────────────────┬───────┘─────────┘
                                      │ Flash via USB
 ┌────────────────────────────────────▼─────────────────┐
 │                   ESP32-S3 EDGE DEVICE                │
 │                                                       │
 │  ┌──────────┐  ┌──────────────┐  ┌────────────────┐ │
-│  │ OV2640   │→ │ Vision Model │→ │ RL Policy      │ │
-│  │ Camera   │  │ (INT8, ~300KB│  │ (FP32, ~21KB)  │ │
+│  │ OV2640   │→ │ Direct Pixel │→ │ RL Policy      │ │
+│  │ Camera   │  │ Stats (~1KB) │  │ (FP32, ~22KB)  │ │
 │  └──────────┘  └──────────────┘  └───────┬────────┘ │
 │                                           │          │
 │  ┌──────────┐                    ┌────────▼───────┐ │
@@ -69,11 +68,9 @@ Internal SRAM (512KB):
   └── Available                   ~277KB
 
 External PSRAM (8MB):
-  ├── Camera frame buffer         ~150KB (320×240 RGB)
-  ├── Resized input buffer        ~150KB (224×224 RGB float)
-  ├── Vision model weights (INT8) ~300KB
-  ├── Intermediate activations    ~500KB
-  └── Available                   ~6.9MB
+  ├── Camera frame buffer         ~18KB (96×96 RGB565)
+  ├── Pixel stats scratch         ~2KB
+  └── Available                   ~7.98MB
 
 External Flash (16MB):
   ├── Bootloader                  ~21KB
@@ -89,20 +86,18 @@ External Flash (16MB):
 
 | Task | Priority | Core | Frequency | Purpose |
 |---|---|---|---|---|
-| `camera_task` | 5 | Core 1 | Every 30 min | Capture + preprocess image |
-| `inference_task` | 4 | Core 1 | On new image | Run vision model + RL policy |
-| `sensor_task` | 3 | Core 0 | Every 60 sec | Read DHT22 temp/humidity |
-| `comms_task` | 2 | Core 0 | Every 5 min | MQTT publish telemetry |
-| `watchdog_task` | 1 | Core 0 | Every 10 sec | System health monitoring |
+| `task_camera` | 3 | — | Every 15 min | Capture RGB565 frame |
+| `task_vision` | 2 | — | On new frame | Direct pixel stats + Chromatic Index |
+| `task_policy` | 2 | — | On new stats | MLP inference → action |
+| `task_sensors` | 4 | — | Every 60 sec | Read DHT22 temp/humidity |
+| `task_telemetry` | 1 | — | Every 5 sec | JSON serial/MQTT output |
 
 ## Development Host: ML Pipeline
 
-### Vision Model Training
-- **Dataset:** Kaggle tomato ripeness dataset (~8,000-10,000 images, 6 classes)
-- **Model:** MobileNetV2-tiny or EfficientNet-Lite0 (proven on ESP32)
-- **Training:** PyTorch, ~4 hours on consumer GPU
-- **Quantization:** FP32 → INT8 via TensorFlow Lite or ONNX Runtime
-- **Export:** C header array for direct embedding in firmware
+### Vision Pipeline
+- **Approach:** Direct pixel statistics (no CNN)
+- **Process:** RGB565 frame → 60% centre crop → RGB mean/std/mode + Chromatic Index X
+- **Computation:** Microsecond-scale, zero covariate shift vs simulator
 
 ### RL Policy Training
 - **Algorithm:** Deep Q-Network (DQN) via Stable Baselines3

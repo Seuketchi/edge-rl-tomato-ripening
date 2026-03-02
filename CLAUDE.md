@@ -97,3 +97,115 @@ thesis-it/
 - `docs/research-questions.md` — Detailed success criteria
 - `TODO.md` — Master task checklist with current project status
 - `edge_firmware/main/app_config.h` — All firmware configuration constants
+
+## Current Project Stage
+
+**Stage 5 — Hardware Assembly** (as of March 2026). Stages 1–4 (writing fixes, chapter rewrites, RL methodology gaps, missing figures) are COMPLETE. All simulation/ML code is done, thesis Chapters 1–5 are written, firmware code compiles. Next: assemble physical prototype, then Stage 6 (real tomato experiments with 5–10 fruits).
+
+## "Fix this" Shorthand
+
+When the user says **"fix this"**, work through this prioritized list:
+
+1. **Firmware state vector bug** — `edge_firmware/main/policy_task.c` lines 127–137 hardcode RGB stats (slots 3–11) to `0.0f` instead of reading from `g_state`. The vision task in `vision_task.c` computes these and stores them in `shared_state.h`, but `policy_task.c` never reads them. This means the 16D Variant B policy runs with 9 zeroed features on the actual device.
+2. **Dashboard 4→3 action mismatch** — `digital_twin_viz/index.html` still shows a 4th "Harvest 🔪" Q-value bar and labels vision as "MobileNetV2 (0.35×)". Should be 3 actions and "Direct Pixel Statistics".
+3. **Dead MobileNetV2 config** — `ml_training/config.yaml` lines 12–60 have a full `vision:` section for MobileNetV2 training that was abandoned. Remove or comment out.
+4. **Energy metric reporting** — Add energy cost model to evaluation (HEAT=1 unit, MAINTAIN=0.1, COOL=0.3) and report total energy per episode. No device changes needed.
+5. **Confidence-based action gating** — In firmware, if max softmax confidence < 0.6, default to MAINTAIN. ~10 lines of C in `policy_task.c`.
+6. **k₁ online adaptation** — Exponential moving average of observed dX/dt on ESP32 to adapt the ripening rate constant. Addresses RQ3 sim-to-real transfer. Only if time permits.
+
+## How to Run Things
+
+### Python Environment
+```bash
+source .venv/bin/activate          # Python 3.13.11, plain venv
+pip install -r requirements.txt    # torch, stable-baselines3, gymnasium, etc.
+```
+
+### ML Training (all from project root)
+```bash
+# DQN Training
+python -m ml_training.rl.train_dqn --config ml_training/config.yaml
+
+# DQN smoke test (fast verification)
+python -m ml_training.rl.train_dqn --config ml_training/config.yaml --total-timesteps 1000 --smoke-test
+
+# Policy distillation (teacher → student)
+python -m ml_training.rl.distill --config ml_training/config.yaml --teacher outputs/rl_<timestamp>/final_model.zip
+
+# Algorithm comparison (DQN vs PPO vs A2C)
+python -m ml_training.rl.train_algo_comparison --config ml_training/config.yaml
+python -m ml_training.rl.train_algo_comparison --config ml_training/config.yaml --smoke-test
+
+# Export distilled policy to C header
+python ml_training/rl/export_policy_c.py
+python ml_training/rl/export_policy_c.py --student outputs/.../student_policy.pth
+python ml_training/rl/export_policy_c.py --int8    # INT8 quantized
+python ml_training/rl/export_policy_c.py --verify  # verify golden vectors
+
+# Run simulation visualization
+python -m ml_training.rl.run_simulation --model outputs/rl_20260217_095300/final_model.zip
+
+# Generate thesis figures
+python generate_thesis_figures.py --model-dir outputs/rl_20260217_095300
+python generate_thesis_figures.py --figures episode envelope tracking comparison distillation training
+```
+
+### Visualization & Demos
+```bash
+python digital_twin_viz/server.py   # WebSocket dashboard → open http://localhost:8765
+python run_sim_demo.py              # Quick sim demo (hardcoded model path)
+python run_box2d_viz.py             # Box2D + pygame visualization
+```
+
+### Tests
+```bash
+python -m pytest tests/ -v
+```
+
+### ESP-IDF Firmware (requires ESP-IDF v5.1+)
+```bash
+cd edge_firmware
+idf.py build
+idf.py flash
+idf.py monitor                     # Serial output at 115200 baud
+```
+
+## Thesis LaTeX Structure
+
+Three document variants exist:
+
+### 1. `docs/thesis/thesis_final.tex` — IEEE Conference Format (main, with chapter includes)
+```bash
+cd docs/thesis && pdflatex thesis_final.tex && pdflatex thesis_final.tex
+```
+Includes:
+- `chapters/01_introduction.tex` → Chapter 1
+- `chapters/02_rrl.tex` → Chapter 2 (Review of Related Literature)
+- `chapters/03_methodology.tex` → Chapter 3
+- `chapters/04_results.tex` → Chapter 4
+- `conclusion.tex` → Chapter 5
+- `references.bib`
+
+### 2. `docs/thesis/thesis_report.tex` — IEEE Conference Format (self-contained, 453 lines)
+```bash
+cd docs/thesis && pdflatex thesis_report.tex && bibtex thesis_report && pdflatex thesis_report.tex && pdflatex thesis_report.tex
+```
+All 4 chapters inline (no `\input{}`). Good for quick single-file editing.
+
+### 3. `docs/thesis/manuscript/methodology_and_results.tex` — University A4 Format
+```bash
+cd docs/thesis/manuscript && pdflatex methodology_and_results.tex
+```
+Includes `00_title_page` through `12_curriculum_vitae`. University submission format.
+
+### Key rule: When told to "update the methodology", edit `chapters/03_methodology.tex`. When told to "update results", edit `chapters/04_results.tex`.
+
+## Known Issues / Tech Debt
+
+1. **`policy_task.c` RGB slots zeroed** — See "Fix this" item #1. Critical for RQ1 validity.
+2. **Dashboard shows legacy 4-action space & MobileNetV2 label** — See "Fix this" item #2.
+3. **`config.yaml` has dead `vision:` section** — Lines 12–60 reference MobileNetV2 training that was replaced by direct pixel extraction.
+4. **`ml_training/vision/` directory is legacy** — Not used in deployment. Direct pixel extraction replaced CNN entirely.
+5. **`export_onnx.py` is dead code** — The system uses direct C header export (`export_policy_c.py`), not ONNX.
+6. **Distillation reward gap** — Student achieves 97.8% *action fidelity* vs teacher, but reward drops from teacher's 4.05 to student's −22.96. Thesis correctly frames this as action agreement, not reward equivalence.
+7. **Best trained model path** — `outputs/rl_20260217_095300/` (teacher that produced the 97.8% student). Use `best_model/best_model.zip` or `final_model.zip`.

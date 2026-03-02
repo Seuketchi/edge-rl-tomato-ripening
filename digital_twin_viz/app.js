@@ -15,9 +15,8 @@ const STAGE_NAMES = ['Green', 'Breaker', 'Turning', 'Pink', 'Light Red', 'Red'];
 const STAGE_COLORS = ['#3a7d44', '#7da53a', '#c9a825', '#e88c3a', '#d94f3a', '#c0302a'];
 const ACTION_INFO = {
     maintain: { icon: '⏸️', label: 'MAINTAIN', detail: 'Keep current conditions', color: '#8b949e' },
-    heat: { icon: '🔥', label: 'HEAT', detail: 'Raise temperature +2°C', color: '#f85149' },
-    cool: { icon: '❄️', label: 'COOL', detail: 'Lower temperature −2°C', color: '#58a6ff' },
-    harvest: { icon: '🔪', label: 'HARVEST', detail: 'Pick tomato now!', color: '#d29922' },
+    heat: { icon: '🔥', label: 'HEAT', detail: 'Raise temperature +1°C', color: '#f85149' },
+    cool: { icon: '❄️', label: 'COOL', detail: 'Heater OFF (passive cooling)', color: '#58a6ff' },
 };
 
 // ── Tomato Canvas ─────────────────────────────────────────────
@@ -75,14 +74,17 @@ function updatePipeline(s) {
     document.getElementById('classStage').style.color = STAGE_COLORS[stage];
     document.getElementById('classRipeness').textContent = s.ripeness.toFixed(2);
 
-    // Simulated classification bars (based on ripeness distance from each stage center)
-    for (let i = 0; i < 6; i++) {
-        const dist = Math.abs(s.ripeness - i);
-        const conf = Math.max(0, 1 - dist * 0.5);
-        const bar = document.getElementById(`vb${i}`);
-        bar.style.width = `${conf * 100}%`;
-        bar.style.background = i === stage ? STAGE_COLORS[i] : 'var(--purple)';
-        bar.style.opacity = i === stage ? '1' : '0.4';
+    // RGB channel mean bars (from direct pixel statistics)
+    if (s.observation && s.observation.length >= 6) {
+        // Obs slots 3,4,5 = C_mu_R, C_mu_G, C_mu_B (normalized ~0-1)
+        const rgbMeans = [s.observation[3], s.observation[4], s.observation[5]];
+        for (let i = 0; i < 3; i++) {
+            const bar = document.getElementById(`vb${i}`);
+            if (bar) {
+                bar.style.width = `${Math.min(100, Math.abs(rgbMeans[i]) * 100)}%`;
+                bar.style.opacity = '1';
+            }
+        }
     }
 
     // ── RL Agent ──
@@ -97,7 +99,7 @@ function updatePipeline(s) {
         const maxQ = Math.max(...qv);
         const minQ = Math.min(...qv);
         const range = maxQ - minQ || 1;
-        for (let i = 0; i < 4; i++) {
+        for (let i = 0; i < 3; i++) {
             const pct = ((qv[i] - minQ) / range) * 100;
             const bar = document.getElementById(`q${i}`);
             bar.style.width = `${pct}%`;
@@ -276,14 +278,6 @@ function renderTomato() {
             ctx.fillText('❄', sx, sy);
         }
     }
-    if (actionId === 3) {
-        ctx.strokeStyle = '#d29922';
-        ctx.lineWidth = 3;
-        ctx.setLineDash([4, 4]);
-        ctx.strokeRect(cx - tR - 8, tY + bobY - tR - 8, tR * 2 + 16, tR * 2 + 16);
-        ctx.setLineDash([]);
-    }
-
     // Camera indicator
     ctx.fillStyle = 'rgba(0,0,0,0.5)';
     ctx.fillRect(10, 8, 50, 16);
@@ -344,7 +338,7 @@ function renderChart() {
     drawLine(ctx, hist.hours, tN, maxH, 5, pad, cW, cH, '#f85149', 1.2);
 
     // Action colors as dots
-    const actionColors = ['#8b949e', '#f85149', '#58a6ff', '#d29922'];
+    const actionColors = ['#8b949e', '#f85149', '#58a6ff'];
     for (let i = 0; i < hist.hours.length; i++) {
         const x = pad.l + (hist.hours[i] / maxH) * cW;
         ctx.beginPath();

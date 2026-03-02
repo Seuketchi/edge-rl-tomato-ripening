@@ -34,19 +34,24 @@ import numpy as np
 @dataclass
 class SimulatorConfig:
     """Configuration for the ripening simulator."""
-    k1: float = 0.02                # Ripening rate constant (day⁻¹ °C⁻¹), calibrated from Ogundiwin et al. (2022)
-    t_base: float = 12.5            # Base temperature (°C), per UC Davis & Saltveit (2005)
+    k1: float = 0.08                # Ripening rate constant
+    t_base: float = 12.5            # Base temperature (°C)
     x_min: float = 0.0              # Minimum chromatic index (fully ripe / Red)
     temp_noise_std: float = 0.5     # Temperature sensor noise (°C)
     humidity_noise_std: float = 2.0  # Humidity sensor noise (%)
-    k1_variation: float = 0.008     # Per-episode k1 randomization range (±40% of nominal)
+    k1_variation: float = 0.02      # Per-episode k1 randomization range
     initial_ripeness_range: tuple[float, float] = (0.6, 1.0)  # Green-ish start
-    initial_temp_range: tuple[float, float] = (25.0, 31.0)  # Iligan City daytime range
+    initial_temp_range: tuple[float, float] = (25.0, 30.0)  # At/above ambient (Philippines)
     initial_humidity_range: tuple[float, float] = (65.0, 85.0)
     delta_t_step: float = 1.0       # Incremental temperature change per action (°C)
     # Ambient environment (heater-only system: cannot cool below ambient)
-    ambient_temp_mean: float = 27.0  # Mean ambient temperature (°C) — Iligan City annual mean
-    ambient_temp_std: float = 3.0    # Ambient variation std (diurnal 22–31°C, indoor no AC)
+    ambient_temp_mean: float = 27.0  # Mean ambient temperature (°C) — Philippines climate
+    ambient_temp_std: float = 2.0    # Ambient variation std (stochastic noise)
+    # Diurnal (day/night) cycle parameters
+    diurnal_amplitude: float = 4.0   # ±°C swing around mean (peak-to-trough = 8°C)
+    diurnal_peak_hour: float = 14.0  # Hour of day when ambient is hottest (2 PM)
+    # Humidity-temperature coupling
+    humidity_temp_coupling: float = -1.5  # RH% change per °C of heating (negative: heating dries air)
     # Max-pool simulation: spatial heterogeneity parameters
     spatial_grid_size: int = 4      # NxN grid for spatial pixel simulation
     spatial_std: float = 0.06       # Std of per-patch chromatic variation
@@ -146,24 +151,33 @@ class TomatoRipeningSimulator:
         # --- Incremental temperature control ---
         if action == 1:  # heat: increment setpoint
             self.temperature += cfg.delta_t_step
-        elif action == 2:  # cool: decrement setpoint (heater OFF + vents open)
+        elif action == 2:  # cool: decrement setpoint
             self.temperature -= cfg.delta_t_step
         # action == 0: maintain — no setpoint change
 
         # Natural drift toward ambient (models imperfect insulation)
-        ambient_temp = cfg.ambient_temp_mean + self.rng.normal(0, cfg.ambient_temp_std)
+        # Diurnal cycle: T_ambient(t) = T_mean + A·sin(2π(h - h_peak)/24)
+        hour_of_day = self.hours_elapsed % 24.0
+        diurnal = cfg.diurnal_amplitude * np.sin(
+            2.0 * np.pi * (hour_of_day - cfg.diurnal_peak_hour + 6.0) / 24.0
+        )  # +6h shift so sin peaks at diurnal_peak_hour
+        ambient_temp = cfg.ambient_temp_mean + diurnal + self.rng.normal(0, cfg.ambient_temp_std)
         diff = ambient_temp - self.temperature
-        # Drift rate depends on action: "cool" opens vents → faster drift
-        drift_rate = 0.15 if action == 2 else 0.05
-        self.temperature += diff * drift_rate * dt_hours
+        self.temperature += diff * 0.05 * dt_hours  # Slow drift
 
         # Small stochastic noise
         self.temperature += self.rng.normal(0, 0.1) * dt_hours
 
-        # Global physical clamp (no hard ambient floor — passive cooling is possible)
+        # Heater-only system: cannot cool below ambient (no active cooling)
+        self.temperature = max(self.temperature, ambient_temp)
         self.temperature = np.clip(self.temperature, 10.0, 40.0)
 
-        # Humidity drift
+        # Humidity drift with temperature coupling
+        # Heating lowers RH (warmer air holds more moisture → lower relative %)
+        # Cooling (passive) raises RH as air cools
+        temp_delta = self.temperature - (cfg.ambient_temp_mean + diurnal)
+        humidity_coupling = cfg.humidity_temp_coupling * temp_delta * 0.02 * dt_hours
+        self.humidity += humidity_coupling
         self.humidity += self.rng.normal(0, 0.5) * dt_hours
         self.humidity = np.clip(self.humidity, 40.0, 99.0)
 
@@ -316,6 +330,7 @@ class TomatoRipeningSimulator:
             "humidity": self.humidity + self.rng.normal(0, cfg.humidity_noise_std),
             "hours_elapsed": self.hours_elapsed,
             "days_elapsed": self.hours_elapsed / 24.0,
+            "hour_of_day": self.hours_elapsed % 24.0,
             # True values (for evaluation only — not available on real HW)
             "_true_temperature": self.temperature,
             "_true_humidity": self.humidity,

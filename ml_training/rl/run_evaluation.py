@@ -58,14 +58,14 @@ def evaluate_trajectories(model, config, n_episodes=5, output_dir=Path("outputs"
     fig, ax = plt.subplots(figsize=(10, 6))
     sns.lineplot(data=df, x="day", y="ripeness", hue="episode", palette="tab10", ax=ax, legend=False)
     
-    # Add target zone
-    ax.axhspan(3.5, 4.5, color="green", alpha=0.1, label="Optimal Harvest Window")
-    ax.axhline(5.0, color="red", linestyle="--", label="Overripe")
-    
+    # Add target zone (Chromatic Index: 0=Red/Ripe, 1=Green/Unripe)
+    ax.axhspan(0.0, 0.15, color="green", alpha=0.1, label="Optimal Harvest Window (X < 0.15)")
+    ax.axhline(0.15, color="red", linestyle="--", label="Harvest Threshold")
+
     ax.set_xlabel("Time (days)")
-    ax.set_ylabel("Ripeness Stage (0-5)")
+    ax.set_ylabel("Chromatic Index X (0=Ripe, 1=Green)")
     ax.set_title("RL Agent Ripening Control Trajectories")
-    ax.set_ylim(0, 5.5)
+    ax.set_ylim(0, 1.05)
     
     plt.tight_layout()
     plt.savefig(output_dir / "ripening_trajectories.png", dpi=300)
@@ -106,7 +106,7 @@ def plot_domain_randomization(model, config, n_episodes=50, output_dir=Path("out
     ax.plot(x, mean_traj, color="blue", linewidth=2, label="Mean Trajectory")
     
     ax.set_xlabel("Time (days)")
-    ax.set_ylabel("Ripeness Stage")
+    ax.set_ylabel("Chromatic Index X")
     ax.set_title("Robustness to Domain Randomization")
     ax.legend()
     

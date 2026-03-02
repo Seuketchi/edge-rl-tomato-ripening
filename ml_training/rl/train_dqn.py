@@ -23,7 +23,6 @@ import numpy as np
 import yaml
 from stable_baselines3 import DQN
 from stable_baselines3.common.callbacks import BaseCallback, EvalCallback
-from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.vec_env import DummyVecEnv
 
 from ml_training.rl.environment import TomatoRipeningEnv
@@ -354,15 +353,15 @@ def main() -> None:
     n_eval = 100 if not args.smoke_test else 10
     results = []
 
-    sac_results = evaluate_trained_policy(model, config, n_episodes=n_eval, seed=seed + 2000)
-    results.append(sac_results)
+    dqn_results = evaluate_trained_policy(model, config, n_episodes=n_eval, seed=seed + 2000)
+    results.append(dqn_results)
     print(f"\nDQN Policy:")
-    print(f"  Mean reward:      {sac_results['mean_reward']:.2f} ± {sac_results['std_reward']:.2f}")
-    print(f"  Mean timing err:  {sac_results.get('mean_timing_error', 'N/A')}")
-    print(f"  Mean quality:     {sac_results.get('mean_quality', 'N/A')}")
-    print(f"  Harvest rate:     {sac_results['harvest_rate']:.2%}")
-    if "action_distribution" in sac_results:
-        print(f"  Action dist:      {sac_results['action_distribution']}")
+    print(f"  Mean reward:      {dqn_results['mean_reward']:.2f} ± {dqn_results['std_reward']:.2f}")
+    print(f"  Mean timing err:  {dqn_results.get('mean_timing_error', 'N/A')}")
+    print(f"  Mean quality:     {dqn_results.get('mean_quality', 'N/A')}")
+    print(f"  Harvest rate:     {dqn_results['harvest_rate']:.2%}")
+    if "action_distribution" in dqn_results:
+        print(f"  Action dist:      {dqn_results['action_distribution']}")
 
     # Baseline comparisons
     for baseline in ["fixed_stage5", "fixed_day", "random"]:

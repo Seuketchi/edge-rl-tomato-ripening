@@ -339,18 +339,18 @@
     \begin{enumerate}
         \item \textbf{Teacher Training:} The DQN teacher is trained for $10^6$ timesteps in the digital twin as described in Section~\ref{subsec:dqn_training}.
 
-        \item \textbf{Data Generation:} The trained teacher generates $N = 100{,}000$ state-action pairs by rolling out the learned policy in the simulator. For each state $s_i$, the full Q-value vector $\mathbf{q}_i \in \mathbb{R}^3$ is recorded, preserving both the optimal action and the relative ranking of suboptimal actions. It is important to note that these 100,000 rollout samples naturally reflect the teacher's action distribution; if one action (e.g., COOL) dominates the optimal policy, its corresponding states will be overrepresented in the distillation dataset, which can bias the student's per-class action fidelity.
+        \item \textbf{Data Generation:} The trained teacher generates $N = 100{,}000$ state-action pairs $(s_i, a_i^{*})$ by rolling out the deterministic greedy policy in the simulator. For each state $s_i$, the teacher's greedy action $a_i^{*} = \arg\max_a Q_{\theta}(s_i, a)$ is recorded as a hard label. It is important to note that these 100,000 rollout samples naturally reflect the teacher's action distribution; if one action (e.g., COOL) dominates the optimal policy, its corresponding states will be overrepresented in the distillation dataset, which can bias the student's per-class action fidelity.
 
-        \item \textbf{Student Training:} A compact MLP with $[64, 64]$ hidden layers (5,443 parameters) is trained to minimize a weighted combination of Kullback-Leibler divergence and mean squared error losses:
+        \item \textbf{Student Training:} A compact MLP with $[64, 64]$ hidden layers (5,443 parameters) is trained to minimize the cross-entropy loss between the student's predicted action distribution and the teacher's hard action labels:
 
         \begin{equation}
-            \mathcal{L} = \alpha_{\text{KL}} \cdot D_{\text{KL}}\!\left(\sigma(\mathbf{q}_i / \tau) \| \sigma(\hat{\mathbf{q}}_i / \tau)\right) + \alpha_{\text{MSE}} \cdot \|\mathbf{q}_i - \hat{\mathbf{q}}_i\|^2
+            \mathcal{L} = -\frac{1}{N}\sum_{i=1}^{N} \log \hat{p}(a_i^{*} \mid s_i)
             \label{eq:distill_loss}
         \end{equation}
 
-        \noindent where $\sigma$ denotes the softmax function, $\tau = 3.0$ is the distillation temperature, $\alpha_{\text{KL}} = 0.7$, and $\alpha_{\text{MSE}} = 0.3$.
+        \noindent where $a_i^{*} = \arg\max_a Q_{\theta}(s_i, a)$ is the teacher's greedy action for state $s_i$, and $\hat{p}(a \mid s)$ is the student's softmax output. This behavioural cloning formulation is sufficient because the teacher's policy is deterministic (greedy Q-value selection), making soft-target distillation unnecessary.
 
-        \item \textbf{Export:} The student weights are exported as FP32 C constant arrays for direct compilation into the ESP32-S3 firmware. An optional INT8 quantization path compresses weights further using per-channel symmetric quantization, reducing model size from $\sim$22~KB to $\sim$6.8~KB at the cost of approximately 74\% action fidelity.
+        \item \textbf{Export:} The student weights are exported as FP32 C constant arrays (\texttt{policy\_weights.h}) for direct compilation into the ESP32-S3 firmware, alongside 20 golden verification vectors (\texttt{golden\_vectors.h}) for on-device correctness checking at boot. The total weight file size is approximately 22~KB, well within the 16~MB flash budget. INT8 quantization was evaluated but not adopted in the final deployment due to unacceptable fidelity degradation ($\sim$74\% action agreement versus 97.8\% at FP32), and because the ESP32-S3 lacks a hardware integer MAC accelerator that would offset the precision loss with a speed advantage.
     \end{enumerate}
 
     \begin{table}[ht]
@@ -366,9 +366,8 @@
             Training epochs & 100 \\
             Batch size & 512 \\
             Learning rate & $10^{-3}$ \\
-            Softmax temperature $\tau$ & 3.0 \\
-            KL loss weight $\alpha_{\text{KL}}$ & 0.7 \\
-            MSE loss weight $\alpha_{\text{MSE}}$ & 0.3 \\
+            Loss function & Cross-entropy \\
+            Optimizer & Adam \\
             Rollout samples & 100,000 \\
             Action fidelity & 97.8\% \\
             \hline
@@ -432,4 +431,4 @@
 \section{Summary of Methodology}
     \label{sec:Methodology Summary}
 
-    The five-phase methodology can be summarized as follows: Phase~1 mathematically extracts a 10D visual feature vector natively from cropped camera frames, eliminating CNN inference delays and ensuring consistency with simulated state distributions. Phase~2 constructs a physics-based digital twin incorporating calibrated Arrhenius kinetics and six-parameter domain randomization. Phase~3 formulates the ripening control problem as an MDP and trains a DQN teacher policy for 1,000,000 timesteps. Phase~4 distils the teacher into a compact student MLP through a KL-divergence + MSE loss function, achieving 97.8\% action fidelity. Phase~5 deploys the integrated perception and control pipeline on the ESP32-S3 via FreeRTOS, with golden vector testing ensuring functional equivalence. The following chapter presents the results obtained from this methodology.
+    The five-phase methodology can be summarized as follows: Phase~1 mathematically extracts a 10D visual feature vector natively from cropped camera frames, eliminating CNN inference delays and ensuring consistency with simulated state distributions. Phase~2 constructs a physics-based digital twin incorporating calibrated Arrhenius kinetics and six-parameter domain randomization. Phase~3 formulates the ripening control problem as an MDP and trains a DQN teacher policy for 1,000,000 timesteps. Phase~4 distils the teacher into a compact student MLP through cross-entropy behavioural cloning, achieving 97.8\% action fidelity. Phase~5 deploys the integrated perception and control pipeline on the ESP32-S3 via FreeRTOS, with golden vector testing ensuring functional equivalence. The following chapter presents the results obtained from this methodology.

@@ -29,7 +29,7 @@
 
     \subsection{Policy Distillation and Model Compression}
 
-    Knowledge distillation compressed the 68,099-parameter teacher into a 5,443-parameter student MLP, achieving 97.8\% action fidelity with a 12.4$\times$ reduction in model size (from $\sim$270~KB to $\sim$21.8~KB). An optional INT8 quantization path further reduces model size to $\sim$6.8~KB, demonstrating that aggressive compression is feasible when the policy structure is sufficiently regular. The distillation pipeline produces a standalone C header file requiring no external ML runtime dependencies.
+    Knowledge distillation compressed the 68,099-parameter teacher into a 5,443-parameter student MLP, achieving 97.8\% action fidelity with a 12.4$\times$ reduction in model size (from $\sim$270~KB to $\sim$21.8~KB). INT8 quantization was evaluated as a further compression step but reduced action fidelity to 74\%, below the 95\% acceptance threshold, and was therefore not adopted for deployment. The distilled FP32 weights are exported as a standalone C header file requiring no external ML runtime dependencies.
 
     \subsection{Edge Deployment and Autonomous Operation}
 

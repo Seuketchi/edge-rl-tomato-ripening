@@ -63,43 +63,28 @@
 
             <!-- 2. Camera / Vision -->
             <div class="pipeline-node node-vision">
-                <div class="node-label">📷 Vision Model</div>
+                <div class="node-label">📷 Vision Pipeline</div>
                 <div class="node-body">
-                    <div class="model-name">MobileNetV2 (0.35×)</div>
-                    <div class="model-detail">401K params · ~392KB INT8</div>
+                    <div class="model-name">Direct Pixel Statistics</div>
+                    <div class="model-detail">RGB mean/std/mode · X = G/(R+G) · No CNN</div>
                     <div class="classification" id="visionClass">
                         <div class="class-stage" id="classStage">—</div>
-                        <div class="class-confidence">Ripeness: <span id="classRipeness">0.00</span></div>
+                        <div class="class-confidence">Chromatic Index X: <span id="classRipeness">0.00</span></div>
                     </div>
                     <div class="vision-bars" id="visionBars">
-                        <div class="vbar"><span>Green</span>
+                        <div class="vbar"><span>R mean</span>
                             <div class="vbar-bg">
-                                <div class="vbar-fill" id="vb0"></div>
+                                <div class="vbar-fill" id="vb0" style="background:#e74c3c"></div>
                             </div>
                         </div>
-                        <div class="vbar"><span>Breaker</span>
+                        <div class="vbar"><span>G mean</span>
                             <div class="vbar-bg">
-                                <div class="vbar-fill" id="vb1"></div>
+                                <div class="vbar-fill" id="vb1" style="background:#2ecc71"></div>
                             </div>
                         </div>
-                        <div class="vbar"><span>Turning</span>
+                        <div class="vbar"><span>B mean</span>
                             <div class="vbar-bg">
-                                <div class="vbar-fill" id="vb2"></div>
-                            </div>
-                        </div>
-                        <div class="vbar"><span>Pink</span>
-                            <div class="vbar-bg">
-                                <div class="vbar-fill" id="vb3"></div>
-                            </div>
-                        </div>
-                        <div class="vbar"><span>Lt. Red</span>
-                            <div class="vbar-bg">
-                                <div class="vbar-fill" id="vb4"></div>
-                            </div>
-                        </div>
-                        <div class="vbar"><span>Red</span>
-                            <div class="vbar-bg">
-                                <div class="vbar-fill" id="vb5"></div>
+                                <div class="vbar-fill" id="vb2" style="background:#3498db"></div>
                             </div>
                         </div>
                     </div>
@@ -108,7 +93,7 @@
 
             <div class="arrow" id="arrow2">
                 <div class="arrow-line"></div>
-                <div class="arrow-label">observation<br>(9D vector)</div>
+                <div class="arrow-label">observation<br>(16D vector)</div>
                 <div class="arrow-head">▶</div>
             </div>
 
@@ -133,11 +118,6 @@
                             <div class="qbar-bg">
                                 <div class="qbar-fill" id="q2"></div>
                             </div><span class="qnum" id="qn2">—</span>
-                        </div>
-                        <div class="qval"><span>Harvest 🔪</span>
-                            <div class="qbar-bg">
-                                <div class="qbar-fill" id="q3"></div>
-                            </div><span class="qnum" id="qn3">—</span>
                         </div>
                     </div>
                     <div class="chosen-action" id="chosenAction">

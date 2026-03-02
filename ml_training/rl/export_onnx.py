@@ -42,10 +42,9 @@ def main() -> None:
     policy_cfg = rl_cfg["policy"]["student"]
     env_cfg = rl_cfg["environment"]
 
-    # State dim (9D): ripeness, temperature, humidity, days_elapsed, target_day,
-    #                  ripeness_rate, temp_deviation, days_remaining, is_near_target
-    state_dim = 9
-    n_actions = 4  # maintain, heat, cool, harvest
+    # State dim (16D Variant B): X, dX/dt, X_ref, C_mu(3), C_sig(3), C_mode(3), T, H, t_e, t_rem
+    state_dim = 16
+    n_actions = 3  # maintain, heat, cool
 
     output_dir = Path(args.output_dir) if args.output_dir else Path(args.checkpoint).parent
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -90,7 +89,7 @@ def main() -> None:
     print(f"✓ ONNX policy exported to {onnx_path}")
     print(f"  File size: {size_kb:.1f} KB")
     print(f"  Input:     [1, {state_dim}]  (normalised state vector)")
-    print(f"  Output:    [1, {n_actions}]  (action logits: maintain/heat/cool/harvest)")
+    print(f"  Output:    [1, {n_actions}]  (action logits: maintain/heat/cool)")
 
     print(f"\n✅ Export complete. Artifacts saved to {output_dir}/")
 

@@ -6,65 +6,26 @@ project:
   seed: 42
   output_dir: "outputs"
 
-# --- Vision Model (DEPRECATED) ---
-# NOTE: The CNN vision model was replaced by direct pixel statistics computation.
-# This configuration block is kept only for historical reproducibility of the ablations.
-vision:
-  # Model
-  model_name: "mobilenetv2"       # mobilenetv2 | mobilenetv3_small | efficientnet_lite0
-  width_mult: 0.35                # MobileNetV2 width multiplier (0.35, 0.5, 1.0)
-  num_classes: 4                  # Number of ripeness classes
-  pretrained: true                # Use ImageNet pretrained weights
-  freeze_backbone: false          # Freeze backbone during training
-  input_size: 224                 # Input image size (224x224)
-
-  # Dataset
-  dataset:
-    root: "data/tomato"           # Root directory for dataset
-    # Kaggle dataset name (if using kagglehub)
-    kaggle_dataset: "enalis/tomatoes-dataset"
-    # Class names in order
-    class_names:
-      - "unripe"
-      - "ripe"
-      - "old"
-      - "damaged"
-    train_split: 0.70
-    val_split: 0.15
-    test_split: 0.15
-
-  # Augmentation
-  augmentation:
-    random_horizontal_flip: 0.5
-    random_vertical_flip: 0.0
-    random_rotation: 15           # degrees
-    color_jitter:
-      brightness: 0.3
-      contrast: 0.3
-      saturation: 0.3
-      hue: 0.1
-    random_resized_crop:
-      scale: [0.8, 1.0]
-      ratio: [0.9, 1.1]
-
-  # Training
-  training:
-    epochs: 80
-    batch_size: 32
-    learning_rate: 0.001
-    weight_decay: 0.0001
-    scheduler: "cosine"           # cosine | step | plateau
-    warmup_epochs: 5
-    early_stopping_patience: 15
-    label_smoothing: 0.1
-
-  # Export
-  export:
-    onnx_path: "outputs/models/tomato_classifier.onnx"
-    espdl_path: "outputs/models/tomato_classifier.espdl"
-    target_chip: "esp32s3"
-    quant_bits: 8
-    calibration_samples: 256
+# --- Vision Model (LEGACY — NOT USED) ---
+# Direct pixel statistics replaced CNN. See edge_firmware/main/edge_rl_vision.c
+# Kept here for reference only.
+# vision:
+#   model_name: "mobilenetv2"
+#   width_mult: 0.35
+#   num_classes: 4
+#   pretrained: true
+#   freeze_backbone: false
+#   input_size: 224
+#   dataset:
+#     root: "data/tomato"
+#     kaggle_dataset: "enalis/tomatoes-dataset"
+#     class_names: ["unripe", "ripe", "old", "damaged"]
+#     train_split: 0.70
+#     val_split: 0.15
+#     test_split: 0.15
+#   augmentation: {}
+#   training: {}
+#   export: {}
 
 # --- RL Policy ---
 rl:
@@ -95,14 +56,14 @@ rl:
 
   # Simulator physics (ROYG convention: X=1 Green, X=0 Red)
   simulator:
-    k1: 0.02                      # Ripening rate constant (day⁻¹ °C⁻¹), calibrated from Ogundiwin et al. (2022)
-    t_base: 12.5                  # Base temperature (°C), per UC Davis & Saltveit (2005)
+    k1: 0.08                      # Ripening rate constant
+    t_base: 12.5                  # Base temperature (°C)
     x_min: 0.0                    # Minimum chromatic index (fully ripe)
     temp_noise_std: 0.5           # Temperature sensor noise
     humidity_noise_std: 2.0       # Humidity sensor noise
     delta_t_step: 1.0             # Incremental temp change per action (°C)
-    ambient_temp_mean: 27.0       # Mean ambient temperature (°C) — Iligan City annual mean
-    ambient_temp_std: 3.0         # Ambient variation — diurnal cycle (22–31°C), indoor no AC
+    ambient_temp_mean: 27.0       # Mean ambient temperature (°C) — Philippines climate
+    ambient_temp_std: 2.0         # Ambient variation (diurnal + stochastic)
 
   # DQN Training (3-action: maintain / heat / cool)
   training:

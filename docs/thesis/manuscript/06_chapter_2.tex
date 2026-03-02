@@ -142,9 +142,9 @@
 
     Standard 32-bit floating-point (FP32) model representations are both memory-intensive and computationally expensive on microcontrollers that lack hardware floating-point units. Quantization reduces the numerical precision of weights and activations from FP32 to 8-bit integers (INT8), achieving a 4$\times$ reduction in model size and enabling the use of SIMD (Single Instruction, Multiple Data) integer instructions available on modern microcontroller architectures such as the Xtensa LX7 core.
 
-    Symmetric per-channel quantization---where independent scaling factors are computed for each output neuron---provides a favourable balance between compression ratio and accuracy preservation for small MLP architectures. The ESP-DL library \citep{espdl2024} provides hardware-optimized INT8 inference kernels specifically designed for Espressif microcontrollers, outperforming generic interpreters such as TensorFlow Lite for Microcontrollers (TFLite Micro) on the ESP32-S3 platform.
+    Symmetric per-channel quantization---where independent scaling factors are computed for each output neuron---provides a favourable balance between compression ratio and accuracy preservation for small MLP architectures. Libraries such as ESP-DL \citep{espdl2024} and TensorFlow Lite for Microcontrollers (TFLite Micro) provide hardware-optimized INT8 inference kernels for Espressif microcontrollers.
 
-    By combining policy distillation with INT8 quantization, the present study demonstrates that complex RL control policies can be executed in under 10~ms on the ESP32-S3, well within the 15-minute decision cycle required for ripening management.
+    However, for sufficiently compact models (fewer than 10,000 parameters), an alternative approach bypasses ML runtimes entirely: the distilled student weights are exported as FP32 C constant arrays and compiled directly into the firmware. This eliminates runtime overhead and library dependencies at the cost of a 4$\times$ larger weight footprint compared to INT8---a trade-off that is acceptable when the model fits comfortably within available flash memory. The present study adopts this pure-C FP32 approach, achieving sub-10~ms inference latency on the ESP32-S3 without requiring any external ML library.
 
     \subsection{Computer Vision for Ripeness Detection}
 

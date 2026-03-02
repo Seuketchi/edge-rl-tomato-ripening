@@ -75,12 +75,12 @@ Items marked `[EXPERIMENT]` require real tomatoes and a running system.
 ---
 
 ## ══════════════════════════════════════
-## STAGE 4 — CREATE MISSING FIGURES ⚠️ PARTIALLY COMPLETE
+## STAGE 4 — CREATE MISSING FIGURES ✅ COMPLETE
 ## ══════════════════════════════════════
 
 - [x] `[NOW]` **Conceptual framework figure (Figure 1.1)** — TikZ block diagram created in Section 1.7.
-- [ ] `[NOW]` **DQN training convergence plot (Appendix A.2)** — ⚠️ BLOCKED: No training log data found in repository. Need to rerun training with logging, or locate existing TensorBoard/CSV logs.
-- [ ] `[NOW]` **Distillation convergence plot (Appendix A.3)** — ⚠️ BLOCKED: No distillation log data found in repository. Need to rerun distillation with logging, or locate existing logs.
+- [x] `[NOW]` **DQN training convergence plot (Appendix A.2)** — Generated from `outputs/rl_20260217_095300/eval_logs/evaluations.npz` (the teacher run producing the 97.8% student). Saved to `docs/thesis/manuscript/images/policy_improvement.png`.
+- [x] `[NOW]` **Distillation convergence plot (Appendix A.3)** — Generated from `outputs/rl_20260217_095300/distillation/distill_final/distill_20260220_154018/training_history.json` (97.8% fidelity run). Saved to `docs/thesis/manuscript/images/distillation_curves.png`.
 
 ---
 
@@ -149,7 +149,7 @@ Items marked `[EXPERIMENT]` require real tomatoes and a running system.
 
 - [x] Check every Figure ?? and Table ?? reference — none are unresolved.
 - [x] Check every (?) citation — none remain.
-- [ ] Confirm Appendix A.2 and A.3 have actual figures, not just section headings. ⚠️ Depends on convergence plot data.
+- [x] Confirm Appendix A.2 and A.3 have actual figures, not just section headings. ✅ Both plots regenerated from 97.8% fidelity run.
 - [ ] Fill in Curriculum Vitae placeholders — date of birth, place of birth, email.
 - [ ] Confirm GitHub repository is public and contains all referenced source files.
 - [ ] Add README to GitHub repository with setup instructions and how to reproduce results.
@@ -164,11 +164,11 @@ Items marked `[EXPERIMENT]` require real tomatoes and a running system.
 
 | Priority | Task | Blocker |
 |---|---|---|
-| 🔴 **Now** | Generate convergence plots (rerun training/distillation with logging) | Need training data |
+| ✅ **Done** | Convergence plots generated from training logs | Saved to manuscript/images/ |
 | 🔴 **Now** | Build hardware prototype | Physical components |
 | 🟡 After hardware | Run 5–10 real tomato trials | Working prototype |
 | 🟢 Final | Cleanup, CV, README, spell check | Everything else done |
 
 ---
 
-*Stages 1–3 are complete. Stage 4 needs training data for plots. The next physical work is Stage 5 (hardware assembly).*
+*Stages 1–4 are complete. The next work is Stage 5 (hardware assembly).*

@@ -27,6 +27,10 @@ from ml_training.rl.environment import TomatoRipeningEnv
 ACTION_NAMES = ["Maintain", "Heat (+1°C)", "Cool (−1°C)"]
 ACTION_COLORS = ["#888888", "#e74c3c", "#3498db"]
 
+# Energy cost model (relative units per step)
+# HEAT = active heating relay, COOL = fan only, MAINTAIN = idle
+ENERGY_COST = {0: 0.1, 1: 1.0, 2: 0.3}
+
 
 def create_env(config: dict, seed: int = 42) -> TomatoRipeningEnv:
     """Create an environment from config."""
@@ -63,6 +67,7 @@ def run_episode(env: TomatoRipeningEnv, model: DQN, seed: int | None = None) -> 
         "actions": [],
         "rewards": [],
         "x_ref": [],
+        "energy": [],
     }
 
     done = False
@@ -83,6 +88,7 @@ def run_episode(env: TomatoRipeningEnv, model: DQN, seed: int | None = None) -> 
         action, _ = model.predict(obs, deterministic=True)
         action = int(action)
         trajectory["actions"].append(action)
+        trajectory["energy"].append(ENERGY_COST.get(action, 0.1))
 
         # Step
         obs, reward, terminated, truncated, info = env.step(action)
@@ -100,6 +106,7 @@ def run_episode(env: TomatoRipeningEnv, model: DQN, seed: int | None = None) -> 
     trajectory["x_ref"].append(sim_state.get("x_ref", np.nan))
 
     trajectory["total_reward"] = total_reward
+    trajectory["total_energy"] = sum(trajectory["energy"])
     trajectory["final_X"] = sim_state["ripeness"]
     trajectory["auto_harvest"] = info.get("auto_harvest", False)
     trajectory["deadline_harvest"] = info.get("deadline_harvest", False)
@@ -278,6 +285,7 @@ def main() -> None:
               f"final_X={traj['final_X']:.3f}, "
               f"quality={traj['quality']:.3f}, "
               f"timing_err={traj['timing_error']:.2f}d, "
+              f"energy={traj['total_energy']:.1f}, "
               f"{harvest}")
 
     # Generate plots
@@ -297,6 +305,7 @@ def main() -> None:
     rewards = [t["total_reward"] for t in trajectories]
     timing = [t["timing_error"] for t in trajectories]
     quality = [t["quality"] for t in trajectories]
+    energy = [t["total_energy"] for t in trajectories]
     auto_harvest_rate = sum(1 for t in trajectories if t["auto_harvest"]) / len(trajectories)
 
     print(f"\n{'=' * 55}")
@@ -305,6 +314,7 @@ def main() -> None:
     print(f"  Mean reward:       {np.mean(rewards):+.2f} ± {np.std(rewards):.2f}")
     print(f"  Mean timing error: {np.mean(timing):.2f} ± {np.std(timing):.2f} days")
     print(f"  Mean quality:      {np.mean(quality):.3f} ± {np.std(quality):.3f}")
+    print(f"  Mean energy cost:  {np.mean(energy):.1f} ± {np.std(energy):.1f} units")
     print(f"  Auto-harvest rate: {auto_harvest_rate * 100:.0f}%")
     print(f"  All plots saved to: {output_dir}/")
 

@@ -11,15 +11,9 @@
 #include "esp_err.h"
 #include "esp_camera.h"
 #include "app_config.h"
+#include "vision_stats.h"
 
 #define TAG_VISION "VISION"
-
-typedef struct {
-    float mean[3];
-    float std[3];
-    float mode[3];
-    float chromatic_x;
-} vision_stats_t;
 
 esp_err_t edge_rl_vision_infer(const uint8_t *fb_buf, size_t fb_len,
                                 uint8_t *out_class, float *out_confidence,
@@ -35,37 +29,38 @@ esp_err_t edge_rl_vision_infer(const uint8_t *fb_buf, size_t fb_len,
         return ESP_ERR_INVALID_SIZE;
     }
 
-    /* 1. Compute RGB Statistics directly from RGB565 buffer */
+    /* 1. Apply 60% centre crop to isolate the fruit from background.
+     * For 96x96: crop_size = 58, offset = 19 from each edge. */
+    int crop_size = (int)(VISION_INPUT_W * 0.6f);
+    int crop_off  = (VISION_INPUT_W - crop_size) / 2;
+
     uint32_t sum[3] = {0};
     uint64_t sum_sq[3] = {0};
-    uint32_t hist[3][16] = {0}; // 16-bin histogram for mode
+    uint32_t hist[3][16] = {0}; /* 16-bin histogram for mode */
 
-    int num_pixels = VISION_INPUT_W * VISION_INPUT_H;
+    int num_pixels = crop_size * crop_size;
 
-    for (int i = 0; i < num_pixels; i++) {
-        /* RGB565 is little-endian on ESP32 by default in esp32-camera,
-         * but typically stored as high-byte low-byte. 
-         * The standard is: Byte 0 (High) = RRRRRGGG, Byte 1 (Low) = GGGBBBBB
-         * esp32-camera usually returns swapped bytes depending on the sensor, 
-         * let's assume standard RGB565 packed format (16-bit word).
-         */
-        uint16_t pixel = (fb_buf[i * 2] << 8) | fb_buf[i * 2 + 1];
-        
-        uint8_t r_5 = (pixel >> 11) & 0x1F;
-        uint8_t g_6 = (pixel >> 5)  & 0x3F;
-        uint8_t b_5 = pixel         & 0x1F;
+    for (int row = crop_off; row < crop_off + crop_size; row++) {
+        for (int col = crop_off; col < crop_off + crop_size; col++) {
+            int i = row * VISION_INPUT_W + col;
+            uint16_t pixel = (fb_buf[i * 2] << 8) | fb_buf[i * 2 + 1];
 
-        /* Expand to 8-bit */
-        uint8_t r = (r_5 << 3) | (r_5 >> 2);
-        uint8_t g = (g_6 << 2) | (g_6 >> 4);
-        uint8_t b = (b_5 << 3) | (b_5 >> 2);
+            uint8_t r_5 = (pixel >> 11) & 0x1F;
+            uint8_t g_6 = (pixel >> 5)  & 0x3F;
+            uint8_t b_5 = pixel         & 0x1F;
 
-        sum[0] += r; sum[1] += g; sum[2] += b;
-        sum_sq[0] += (uint64_t)r * r; sum_sq[1] += (uint64_t)g * g; sum_sq[2] += (uint64_t)b * b;
+            /* Expand to 8-bit */
+            uint8_t r = (r_5 << 3) | (r_5 >> 2);
+            uint8_t g = (g_6 << 2) | (g_6 >> 4);
+            uint8_t b = (b_5 << 3) | (b_5 >> 2);
 
-        hist[0][r >> 4]++;
-        hist[1][g >> 4]++;
-        hist[2][b >> 4]++;
+            sum[0] += r; sum[1] += g; sum[2] += b;
+            sum_sq[0] += (uint64_t)r * r; sum_sq[1] += (uint64_t)g * g; sum_sq[2] += (uint64_t)b * b;
+
+            hist[0][r >> 4]++;
+            hist[1][g >> 4]++;
+            hist[2][b >> 4]++;
+        }
     }
 
     for (int c = 0; c < 3; c++) {

@@ -56,7 +56,7 @@ speed: int = 1
 mode: str = "rl"  # "rl", "fixed", "manual"
 manual_action: int = 0
 episode_history: list[dict] = []
-last_q_values: list[float] = [0.0, 0.0, 0.0, 0.0]
+last_q_values: list[float] = [0.0, 0.0, 0.0]
 
 
 def reset_env():
@@ -88,16 +88,12 @@ def do_step():
             q_vals = model.q_net(obs_tensor).squeeze().tolist()
             last_q_values = [float(v) for v in q_vals]
     elif mode == "fixed":
-        # Fixed-day baseline: harvest at target day
-        days_elapsed = env.simulator.hours_elapsed / 24.0
-        if days_elapsed >= env.target_day:
-            action = 3
-        else:
-            action = 0
-        last_q_values = [0.0, 0.0, 0.0, 0.0]
+        # Fixed-day baseline: maintain temperature (auto-harvest handles termination)
+        action = 0
+        last_q_values = [0.0, 0.0, 0.0]
     elif mode == "manual":
         action = manual_action
-        last_q_values = [0.0, 0.0, 0.0, 0.0]
+        last_q_values = [0.0, 0.0, 0.0]
     else:
         action = 0
 
@@ -133,7 +129,7 @@ def build_state_msg(event: str, **kwargs) -> dict:
         return {"event": event, "error": "no environment"}
 
     sim = env.simulator
-    action_names = ["maintain", "heat", "cool", "harvest"]
+    action_names = ["maintain", "heat", "cool"]
 
     msg = {
         "event": event,
@@ -231,12 +227,6 @@ async def handler(websocket):
                 if not running:
                     state = do_step()
                     await websocket.send(json.dumps(state))
-
-            elif cmd == "harvest":
-                manual_action = 3
-                state = do_step()
-                await websocket.send(json.dumps(state))
-                running = False
 
             elif cmd == "set_mode":
                 mode = msg.get("mode", "rl")

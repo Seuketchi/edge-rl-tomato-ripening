@@ -17,7 +17,7 @@ typedef struct {
 
     /* --- Vision output (from task_vision) --- */
     float   chromatic_x;       /* Continuous Chromatic Index X ∈ [0, 1] (ROYG: 1=Green, 0=Red) */
-    float   prev_chromatic_x;  /* Previous X for dX/dt velocity calc */
+    float   prev_chromatic_x;  /* Previous X (telemetry/debug only; policy uses own ring buffer) */
     float   rgb_mean[3];       /* RGB channel means */
     float   rgb_std[3];        /* RGB channel standard deviations */
     float   rgb_mode[3];       /* RGB channel modes */

@@ -15,7 +15,7 @@
 /* ---- Task stack sizes (words, not bytes) ---- */
 #define TASK_STACK_CAMERA           4096
 #define TASK_STACK_SENSORS          2048
-#define TASK_STACK_VISION           8192   /* larger: runs model inference */
+#define TASK_STACK_VISION           8192   /* larger: pixel stats + chromatic index */
 #define TASK_STACK_POLICY           8192   /* larger: MLP inference + golden test + ODE sim */
 #define TASK_STACK_TELEMETRY        4096   /* JSON formatting needs space */
 
@@ -42,7 +42,7 @@
 #define CAM_PIN_HREF                23
 #define CAM_PIN_PCLK                22
 #define CAM_XCLK_FREQ_HZ            20000000
-#define CAM_FRAME_SIZE              FRAMESIZE_96X96  /* matches model input */
+#define CAM_FRAME_SIZE              FRAMESIZE_96X96  /* matches vision input (96×96 RGB565) */
 
 /* ---- DHT22 sensor ---- */
 #define DHT22_GPIO                  GPIO_NUM_32

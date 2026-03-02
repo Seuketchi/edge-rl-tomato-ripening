@@ -18,18 +18,7 @@
 
 #include "app_config.h"
 #include "shared_state.h"
-
-typedef struct {
-    float mean[3];
-    float std[3];
-    float mode[3];
-    float chromatic_x;
-} vision_stats_t;
-
-/* From components/edge_rl_vision */
-esp_err_t edge_rl_vision_infer(const uint8_t *jpg_buf, size_t jpg_len,
-                                uint8_t *out_class, float *out_confidence,
-                                vision_stats_t *out_stats);
+#include "vision_stats.h"
 
 /* Queue declared in task_camera.c */
 extern QueueHandle_t g_camera_queue;

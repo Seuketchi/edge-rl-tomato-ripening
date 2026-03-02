@@ -59,7 +59,7 @@ This thesis combines three things that have individually been explored but never
 
 | Original Scope | Refined Scope | Rationale |
 |---|---|---|
-| EdgeViT (280KB vision transformer) | MobileNetV2-tiny or EfficientNet-Lite0 (quantized) | EdgeViT on ESP32-S3 is risky; MobileNet family has proven ESP32 support |
+| EdgeViT (280KB vision transformer) | Direct pixel statistics (RGB mean/std/mode + Chromatic Index X) | No CNN needed; pixel math is exact, microsecond-fast, and avoids covariate shift |
 | Causal inference (NOTEARS) | Dropped → future work | Separate research track, hard to validate in 8 weeks |
 | 7-chapter thesis structure | 5-chapter structure | Standard undergrad format, less writing overhead |
 | Prototypical networks for few-shot | Simple fine-tuning with small LR | Prototypical networks add complexity without clear benefit here |
