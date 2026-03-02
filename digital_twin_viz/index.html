@@ -300,7 +300,7 @@ function roygColor(x) {
   for (let i = 0; i < ROYG_X.length - 1; i++) {
     if (x >= ROYG_X[i + 1]) {
       const t = (x - ROYG_X[i+1]) / (ROYG_X[i] - ROYG_X[i+1]);
-      const a = ROYG_RGB[i+1], b = ROYG_RGB[i];
+      const a = ROYG_RGB[i], b = ROYG_RGB[i+1];
       return `rgb(${Math.round(a[0]+t*(b[0]-a[0]))},${Math.round(a[1]+t*(b[1]-a[1]))},${Math.round(a[2]+t*(b[2]-a[2]))})`;
     }
   }
@@ -464,7 +464,7 @@ function drawChart() {
 }
 
 window.addEventListener('resize', resizeChart);
-resizeChart();
+requestAnimationFrame(resizeChart);
 connect();
 </script>
 </body>
