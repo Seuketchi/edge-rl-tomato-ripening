@@ -17,10 +17,16 @@ venv/
 *.toc
 *.bbl
 *.blg
+*.lof
+*.lot
 *.synctex.gz
 *.fls
 *.fdb_latexmk
 *.pdf
+
+# CNN training dataset (deprecated — direct pixel extraction used instead)
+data/tomato/
+data/variant_b_labels.csv
 
 # Model outputs & training runs
 outputs/
