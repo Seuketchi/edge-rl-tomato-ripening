@@ -40,6 +40,13 @@
 
     The student model converges rapidly during distillation training, reaching $>$90\% action fidelity within 10 epochs and stabilizing at 97.8\% by epoch 40. This rapid convergence indicates that the teacher's learned policy has a clear, low-entropy structure---consistent with the deterministic nature of the optimal ripening control strategy.
 
+    \begin{figure}[ht]
+        \centering
+        \includegraphics[width=0.85\textwidth]{reward_histogram.png}
+        \caption{Episode reward distribution of the DQN teacher policy across 100 evaluation episodes (left). The distribution is right-skewed, with the majority of episodes achieving rewards between $+2$ and $+6$. The timing error distribution (right) peaks near 0.5--1.0 days, confirming that the policy consistently harvests within practical scheduling tolerance.}
+        \label{fig:reward_hist}
+    \end{figure}
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % SECTION 4.2 STATE-SPACE ABLATION STUDY
@@ -195,6 +202,13 @@
     \end{itemize}
 
     Unlike the continuous PPO and A2C architectures which suffered policy collapse (adopting single-action strategies and accruing massive penalties), DQN successfully learned a diurnal feedback loop. The agent independently discovered that it must alternate between active heating to maintain biological momentum and active cooling to suppress premature ripening peaks. This emergent multi-modal strategy underscores the robustness of off-policy value iteration in overcoming the exploration challenges of heavily penalized, delayed-reward biological environments.
+
+    \begin{figure}[ht]
+        \centering
+        \includegraphics[width=0.85\textwidth]{policy_heatmap.png}
+        \caption{Policy decision heatmap visualising the DQN agent's action selection across the 2D state space of Chromatic Index $X$ (y-axis) and remaining days until target harvest (x-axis). HEAT (red) dominates when $X$ is high (green, unripe) and time is short; COOL (blue) is preferred when $X$ is close to threshold and time budget remains; MAINTAIN (grey) bridges transitions. The emergent diurnal boundary reflects the agent's learned trade-off between ripening acceleration and deadline precision.}
+        \label{fig:policy_heatmap}
+    \end{figure}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

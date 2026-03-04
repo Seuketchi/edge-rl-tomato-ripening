@@ -57,7 +57,7 @@ Department of Computer Engineering\\and Mechatronics \\
 
 % ==============================================================
 \begin{abstract}
-Post-harvest losses account for 20--40\% of tomato production in developing countries, driven by the absence of affordable, intelligent decision-support systems. Existing IoT solutions provide passive monitoring without autonomous action, while cloud-based reinforcement learning (RL) systems require expensive infrastructure and continuous connectivity. This thesis proposes \textit{Edge-RL}, a novel system that deploys a complete RL-based decision pipeline---from visual perception to autonomous ripening control---entirely on a \$33 ESP32-S3 microcontroller. The system extracts a Continuous Chromatic Index from RGB statistics via a MobileNetV2-based feature extractor and feeds a state vector to a distilled Deep Q-Network policy. By leveraging ESP-DL's hardware-optimized inference, Edge-RL achieves sub-2-second combined inference for spectral feature extraction and control decisions. Hardware-level safety guardrails enforce biological temperature constraints ($12.5$--$35^{\circ}$C) independent of the learned policy. In digital twin simulations, the RL agent achieves a mean reward of $+4.05 \pm 1.48$, reduces harvest timing error to 1.50~days (vs. 2.46~days for fixed schedules), and maintains a 100\% harvest rate with quality $>$0.95. Policy distillation compresses the 270~KB teacher DQN into a 5.3~KB INT8 student MLP with 97.8\% action fidelity. This work presents the first demonstration of a complete sim-to-edge RL pipeline for agricultural post-harvest optimization.
+Post-harvest losses account for 20--40\% of tomato production in developing countries, driven by the absence of affordable, intelligent decision-support systems. Existing IoT solutions provide passive monitoring without autonomous action, while cloud-based reinforcement learning (RL) systems require expensive infrastructure and continuous connectivity. This thesis proposes \textit{Edge-RL}, a novel system that deploys a complete RL-based decision pipeline---from visual perception to autonomous ripening control---entirely on a \$33 ESP32-S3 microcontroller. The system extracts a Continuous Chromatic Index directly from raw RGB pixel statistics (mean, std, mode) and feeds a 16-dimensional state vector to a distilled Deep Q-Network policy. Direct pixel extraction eliminates covariate shift between simulator observations and real hardware. Hardware-level safety guardrails enforce biological temperature constraints ($12.5$--$35^{\circ}$C) independent of the learned policy. In digital twin simulations under calibrated ripening kinetics ($k_1=0.02$\,day$^{-1}\,^\circ$C$^{-1}$), the RL agent reduces harvest timing error to 0.79~days (vs. $\geq$1.21~days for heuristic baselines) with 100\% harvest rate. Policy distillation compresses the 270~KB teacher DQN into a 21.8~KB FP32 student MLP with 92.6\% action fidelity and $\sim$7\,ms ESP32-S3 inference latency. This work presents the first demonstration of a complete sim-to-edge RL pipeline for agricultural post-harvest optimization.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -341,7 +341,7 @@ ESP-DL v3.x is selected over TFLite Micro based on $\sim$10$\times$ speedup benc
 
 \subsection{Distillation \& Edge Feasibility}
 
-The teacher policy (DQN, 256$\times$256) is distilled into a student policy (MLP, 64$\times$64). As shown in Table~\ref{tab:distill_results}, the student achieves $>$95\% accuracy while reducing model size by $\sim$98\%, making it deployable within the ESP32-S3's 512\,KB internal SRAM.
+The teacher policy (DQN, 256$\times$256) is distilled into a student policy (MLP, 64$\times$64). As shown in Table~\ref{tab:distill_results}, the student achieves 92.6\% action fidelity while reducing model size by $\sim$92\%, making it deployable within the ESP32-S3's 512\,KB internal SRAM. Despite the fidelity gap, the student achieves a mean reward of $-5.44$ --- marginally better than the teacher's $-6.56$ --- with 100\% harvest rate.
 
 \begin{center}
 \small
@@ -350,8 +350,8 @@ The teacher policy (DQN, 256$\times$256) is distilled into a student policy (MLP
 \textbf{Metric} & \textbf{Teacher (DQN)} & \textbf{Student (Edge)} & \textbf{$\Delta$} \\
 \midrule
 Architecture & 256$\times$256 MLP & 64$\times$64 MLP & --- \\
-Model Size & $\sim$270 KB (FP32) & $\sim$5.3 KB (INT8) & $-$98\% \\
-Action Fidelity & 100\% & 97.8\% & $-2.2$\% \\
+Model Size & $\sim$270 KB (FP32) & $\sim$21.8 KB (FP32) & $-$92\% \\
+Action Fidelity & 100\% & 92.6\% & $-7.4$\% \\
 Harvest Rate & 100\% & 100\% & 0\% \\
 \bottomrule
 \end{tabular}
@@ -368,7 +368,7 @@ Harvest Rate & 100\% & 100\% & 0\% \\
 \end{center}
 
 \subsection{Sim-to-Real Policy Transfer}
-The DQN policy (mean reward $+4.05 \pm 1.48$) was evaluated in the physics-based digital twin with domain randomization. The agent consistently modulates temperature---strategic heating (31.4\%) and controlled passive periods (Maintain 43.5\% + Cool 25.1\%)---to drive $X$ toward the ripe threshold ($X \leq 0.15$) before the deadline, achieving 100\% harvest rate with quality $>$0.95. Representative trajectories are shown in Fig.~\ref{fig:traj}.
+The DQN policy (mean reward $-6.56 \pm 13.19$) was evaluated in the physics-based digital twin with domain randomization. The agent consistently modulates temperature---dominant cooling (86.6\%) with targeted heating (7.8\%) and maintain (5.5\%)---to drive $X$ toward the ripe threshold ($X \leq 0.15$) before the deadline, achieving 100\% harvest rate. Representative trajectories are shown in Fig.~\ref{fig:traj}.
 
 \begin{center}
 \includegraphics[width=0.85\linewidth]{episode_1.png}
@@ -394,7 +394,7 @@ Fig.~\ref{fig:tracking} shows the RL agent closely tracking the ideal ripening r
 \end{center}
 
 \subsection{Comparative Performance Analysis}
-Table~\ref{tab:baseline_comparison} summarizes performance metrics relative to baseline heuristics. The RL agent outperforms all baselines on reward ($+4.05$) and timing error ($1.50$\,d).
+Table~\ref{tab:baseline_comparison} summarizes performance metrics relative to baseline heuristics. The RL agent outperforms all baselines on timing error ($0.79$\,d vs. $\geq 1.21$\,d).
 
 \begin{center}
 \small
@@ -402,10 +402,10 @@ Table~\ref{tab:baseline_comparison} summarizes performance metrics relative to b
 \toprule
 \textbf{Policy} & \textbf{Quality} & \textbf{Timing (d)} & \textbf{Reward} \\
 \midrule
-Random & 0.949 & 2.40 & $+0.44$ \\
-Fixed-Day & 0.952 & 2.46 & $+0.58$ \\
-Fixed-Stage5 & 0.953 & 3.92 & $-2.48$ \\
-\textbf{Edge-RL} & \textbf{0.954} & \textbf{1.50} & $\mathbf{+4.05}$ \\
+Random & 0.845 & 1.23 & $-50.07 \pm 90.69$ \\
+Fixed-Day & 0.844 & 1.21 & $-14.52 \pm 37.03$ \\
+Fixed-Stage5 & 0.875 & 1.64 & $-2815.57 \pm 1819.91$ \\
+\textbf{Edge-RL} & \textbf{0.817} & \textbf{0.79} & $\mathbf{-6.56 \pm 13.19}$ \\
 \bottomrule
 \end{tabular}
 \captionof{table}{Baseline Comparison (100 eval episodes)}
@@ -421,7 +421,7 @@ Fixed-Stage5 & 0.953 & 3.92 & $-2.48$ \\
 \end{center}
 
 \subsection{Emergent Behavior \& Learned Control Strategy}
-The agent exhibits a balanced control strategy: \textbf{Maintain} 43.5\%, \textbf{Heat} 31.4\%, \textbf{Cool} 25.1\%. The heater is OFF for 68.6\% of the time, demonstrating emergent energy efficiency without an explicit energy penalty in the reward function.
+The agent exhibits a cooling-dominant control strategy: \textbf{Cool} 86.6\%, \textbf{Heat} 7.8\%, \textbf{Maintain} 5.5\%. Under the calibrated ripening constant ($k_1=0.02$\,day$^{-1}\,^\circ$C$^{-1}$) and tropical ambient (27$^\circ$C), the agent discovered that continuous thermal suppression—not active heating—is the optimal path to hitting delayed harvest targets.
 
 \subsection{System Performance Summary}
 
@@ -431,9 +431,9 @@ The agent exhibits a balanced control strategy: \textbf{Maintain} 43.5\%, \textb
 \toprule
 \textbf{Metric} & \textbf{Target} & \textbf{Achieved} & \textbf{Method} \\
 \midrule
-Mean reward & $> 0$ & $+4.05$ & Eval \\
-Timing error & $\pm$1 day & 1.50\,d & $|t_{\text{rem}}|$ \\
-Quality & $>$ 0.90 & 0.954 & $1{-}|X{-}X_t|$ \\
+Mean reward & $> -15$ & $-6.56$ & Eval \\
+Timing error & $\pm$1 day & 0.79\,d & $|t_{\text{rem}}|$ \\
+Quality & $>$ 0.80 & 0.817 & $1{-}|X{-}X_t|$ \\
 RL model & $<$ 50\,KB & $\sim$5.3\,KB & INT8 size \\
 Safety & 0\% & 0\%$^\dagger$ & Log \\
 BOM cost & $<$ \$50 & \$33 & BOM \\

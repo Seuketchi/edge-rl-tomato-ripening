@@ -12,185 +12,207 @@
       color: #1a1a1a;
       min-height: 100vh;
     }
-    .app {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
+    .app { max-width: 1340px; margin: 0 auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
 
-    /* Header */
+    /* ── Header ── */
     .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: white;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      padding: 12px 20px;
+      display: flex; justify-content: space-between; align-items: center;
+      background: white; border: 1px solid #ddd; border-radius: 8px; padding: 10px 18px;
     }
-    .header h1 { font-size: 18px; }
-    .header .subtitle { font-size: 12px; color: #888; margin-top: 2px; font-style: italic; }
-    .header-right { display: flex; gap: 10px; align-items: center; }
+    .header h1 { font-size: 17px; }
+    .header .sub { font-size: 11px; color: #888; margin-top: 2px; font-style: italic; }
+    .header-right { display: flex; gap: 8px; align-items: center; }
     .badge {
-      padding: 4px 10px;
-      border-radius: 4px;
-      font-size: 11px;
-      font-weight: bold;
+      padding: 3px 9px; border-radius: 4px; font-size: 11px; font-weight: bold;
       font-family: 'Courier New', monospace;
-      letter-spacing: 0.05em;
     }
     .badge-conn { background: #fee; color: #c00; border: 1px solid #fcc; }
-    .badge-conn.connected { background: #efe; color: #060; border: 1px solid #cfc; }
-    .badge-day { background: #eef; color: #339; border: 1px solid #ccf; }
+    .badge-conn.on { background: #efe; color: #060; border: 1px solid #cfc; }
+    .badge-seed { background: #eef; color: #339; border: 1px solid #ccf; }
+    .badge-target { background: #fff3e0; color: #e65100; border: 1px solid #ffcc80; }
 
-    /* Grid */
-    .grid {
-      display: grid;
-      grid-template-columns: 220px 1fr 1fr;
-      gap: 12px;
-      align-items: start;
+    /* ── Config panel ── */
+    .config-panel {
+      background: white; border: 1px solid #ddd; border-radius: 8px;
+      padding: 12px 18px; display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap;
     }
+    .cfg-section { display: flex; flex-direction: column; gap: 6px; }
+    .cfg-label { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: #999; margin-bottom: 2px; }
+    .group-btns { display: flex; gap: 5px; flex-wrap: wrap; }
+    .grp-btn {
+      padding: 5px 11px; border-radius: 4px; border: 1px solid #ccc; background: white;
+      font-family: Georgia, serif; font-size: 12px; cursor: pointer; white-space: nowrap;
+    }
+    .grp-btn:hover { background: #f5f5f5; }
+    .grp-btn.active { background: #1a3a2a; color: white; border-color: #1a3a2a; }
 
-    /* Panel */
+    .agent-grid { display: flex; gap: 6px; flex-wrap: wrap; }
+    .agent-chip {
+      display: flex; align-items: center; gap: 5px;
+      padding: 4px 9px; border-radius: 4px; border: 1px solid #ddd;
+      font-size: 12px; cursor: pointer; user-select: none; white-space: nowrap;
+    }
+    .agent-chip:hover { border-color: #aaa; }
+    .agent-chip.selected { border-color: var(--c); background: color-mix(in srgb, var(--c) 12%, white); }
+    .agent-chip.disabled { opacity: .4; cursor: default; }
+    .chip-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--c); flex-shrink: 0; }
+
+    .cfg-divider { width: 1px; background: #eee; align-self: stretch; margin: 0 4px; }
+
+    /* ── Controls bar ── */
+    .controls {
+      background: white; border: 1px solid #ddd; border-radius: 8px;
+      padding: 10px 18px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    }
+    .btn-group { display: flex; gap: 6px; }
+    .btn {
+      padding: 6px 14px; border-radius: 4px; border: 1px solid #ccc; background: white;
+      font-family: Georgia, serif; font-size: 13px; cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: #f5f5f5; }
+    .btn:disabled { opacity: .4; cursor: default; }
+    .btn-primary { background: #2a7a3b; color: white; border-color: #2a7a3b; }
+    .btn-primary:hover:not(:disabled) { background: #22603a; }
+    .speed-ctl { display: flex; align-items: center; gap: 7px; font-size: 13px; color: #444; }
+    input[type=range] { width: 90px; accent-color: #2a7a3b; }
+
+    /* ── Main grid — single mode ── */
+    .main-single {
+      display: grid; grid-template-columns: 210px 1fr 1fr; gap: 10px; align-items: start;
+    }
+    .main-compare { display: grid; grid-template-columns: 1fr; gap: 10px; }
+
+    /* ── Panel ── */
     .panel {
-      background: white;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      padding: 16px;
+      background: white; border: 1px solid #ddd; border-radius: 8px; padding: 14px;
     }
     .panel h2 {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: #888;
-      margin-bottom: 14px;
-      border-bottom: 1px solid #eee;
-      padding-bottom: 6px;
+      font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: #888;
+      margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 5px;
     }
 
-    /* Environment */
+    /* ── Environment panel ── */
     .tomato-circle {
-      width: 80px; height: 80px;
-      border-radius: 50%;
-      border: 3px solid #ddd;
-      margin: 0 auto 12px;
-      transition: background 0.4s ease;
-      background: #3a7d44;
+      width: 72px; height: 72px; border-radius: 50%; border: 3px solid #ddd;
+      margin: 0 auto 10px; transition: background .4s ease; background: #3a7d44;
     }
-    .x-value {
-      text-align: center;
-      font-size: 28px;
-      font-weight: bold;
-      font-family: 'Courier New', monospace;
-      margin-bottom: 4px;
-    }
-    .stage-label {
-      text-align: center;
-      font-size: 13px;
-      color: #666;
-      font-style: italic;
-      margin-bottom: 14px;
-    }
-    .stat-row {
-      display: flex;
-      justify-content: space-between;
-      font-size: 13px;
-      padding: 5px 0;
-      border-bottom: 1px solid #f5f5f5;
-    }
+    .x-value { text-align: center; font-size: 26px; font-weight: bold; font-family: 'Courier New', monospace; margin-bottom: 3px; }
+    .stage-label { text-align: center; font-size: 12px; color: #666; font-style: italic; margin-bottom: 12px; }
+    .stat-row { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; border-bottom: 1px solid #f5f5f5; }
     .stat-row .lbl { color: #888; }
     .stat-row .val { font-family: 'Courier New', monospace; font-weight: bold; }
 
-    /* Agent */
-    .obs-vector {
-      font-family: 'Courier New', monospace;
-      font-size: 9px;
-      color: #888;
-      word-break: break-all;
-      line-height: 1.5;
-      margin-bottom: 14px;
-    }
-    .q-section-label { font-size: 11px; color: #888; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
-    .qrow { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
-    .qrow .qname { font-size: 12px; width: 80px; color: #444; }
-    .qbar-bg { flex: 1; height: 14px; background: #f0f0f0; border-radius: 3px; overflow: hidden; }
-    .qbar-fill { height: 100%; border-radius: 3px; background: #ccc; transition: width 0.15s ease, background 0.15s ease; width: 0%; }
+    /* ── Agent panel ── */
+    .obs-vector { font-family: 'Courier New', monospace; font-size: 9px; color: #888; word-break: break-all; line-height: 1.5; margin-bottom: 12px; }
+    .q-section-label { font-size: 10px; color: #888; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .05em; }
+    .qrow { display: flex; align-items: center; gap: 7px; margin-bottom: 6px; }
+    .qrow .qname { font-size: 11px; width: 75px; color: #444; }
+    .qbar-bg { flex: 1; height: 13px; background: #f0f0f0; border-radius: 3px; overflow: hidden; }
+    .qbar-fill { height: 100%; border-radius: 3px; background: #ccc; transition: width .15s, background .15s; width: 0%; }
     .qbar-fill.best { background: #2a7a3b; }
-    .qnum { font-family: 'Courier New', monospace; font-size: 11px; width: 58px; text-align: right; color: #444; }
-
-    .chosen-action {
-      margin-top: 12px;
-      padding: 8px 12px;
-      background: #f8f8f8;
-      border-left: 3px solid #2a7a3b;
-      border-radius: 0 4px 4px 0;
-    }
-    .chosen-action .ca-label { font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: 0.05em; }
-    .chosen-action .ca-val { font-size: 14px; font-weight: bold; margin-top: 2px; }
-
-    .reward-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
-    .reward-box { background: #f8f8f8; border-radius: 4px; padding: 8px; text-align: center; }
-    .reward-box .rl { font-size: 10px; color: #aaa; text-transform: uppercase; }
-    .reward-box .rv { font-size: 16px; font-family: 'Courier New', monospace; font-weight: bold; }
+    .qnum { font-family: 'Courier New', monospace; font-size: 10px; width: 54px; text-align: right; color: #444; }
+    .chosen-action { margin-top: 10px; padding: 7px 10px; background: #f8f8f8; border-left: 3px solid #2a7a3b; border-radius: 0 4px 4px 0; }
+    .chosen-action .ca-label { font-size: 9px; color: #aaa; text-transform: uppercase; letter-spacing: .05em; }
+    .chosen-action .ca-val { font-size: 13px; font-weight: bold; margin-top: 1px; }
+    .reward-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 10px; }
+    .reward-box { background: #f8f8f8; border-radius: 4px; padding: 7px; text-align: center; }
+    .reward-box .rl { font-size: 9px; color: #aaa; text-transform: uppercase; }
+    .reward-box .rv { font-size: 15px; font-family: 'Courier New', monospace; font-weight: bold; }
     .rv.pos { color: #2a7a3b; }
     .rv.neg { color: #c84b38; }
 
-    /* Chart */
-    #chart { width: 100%; height: 200px; display: block; border: 1px solid #eee; border-radius: 4px; }
-    .chart-legend { display: flex; gap: 14px; margin-top: 8px; font-size: 11px; color: #666; flex-wrap: wrap; }
+    /* ── Charts ── */
+    canvas { display: block; border: 1px solid #eee; border-radius: 4px; }
+    #singleChart { width: 100%; height: 200px; }
+    #compareChart { width: 100%; height: 320px; }
+    .chart-legend { display: flex; gap: 12px; margin-top: 7px; font-size: 11px; color: #666; flex-wrap: wrap; }
     .legend-item { display: flex; align-items: center; gap: 5px; }
     .legend-swatch { width: 18px; height: 3px; border-radius: 2px; }
+    .legend-swatch-dot { width: 10px; height: 10px; border-radius: 50%; }
 
-    /* Controls */
-    .controls {
-      background: white;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      padding: 12px 20px;
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      flex-wrap: wrap;
+    /* ── Compare cards row ── */
+    .compare-cards {
+      display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;
     }
-    .btn-group { display: flex; gap: 8px; }
-    .btn {
-      padding: 7px 16px;
-      border-radius: 4px;
-      border: 1px solid #ccc;
-      background: white;
-      font-family: Georgia, serif;
-      font-size: 13px;
-      cursor: pointer;
+    .agent-card {
+      flex: 1; min-width: 130px; border-radius: 6px; border: 2px solid var(--c);
+      padding: 8px 10px; background: color-mix(in srgb, var(--c) 6%, white);
+      font-size: 12px;
     }
-    .btn:hover:not(:disabled) { background: #f5f5f5; }
-    .btn:disabled { opacity: 0.4; cursor: default; }
-    .btn-primary { background: #2a7a3b; color: white; border-color: #2a7a3b; }
-    .btn-primary:hover:not(:disabled) { background: #22603a; }
-    .speed-control { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #444; }
-    input[type=range] { width: 100px; accent-color: #2a7a3b; }
-    .mode-group { display: flex; gap: 6px; margin-left: auto; }
-    .mode-btn { padding: 5px 12px; border-radius: 4px; border: 1px solid #ccc; background: white; font-size: 12px; cursor: pointer; font-family: Georgia, serif; }
-    .mode-btn.active { background: #2a7a3b; color: white; border-color: #2a7a3b; }
+    .agent-card .ac-label { font-weight: bold; color: var(--c); font-size: 13px; margin-bottom: 5px; }
+    .agent-card .ac-row { display: flex; justify-content: space-between; margin-bottom: 3px; }
+    .agent-card .ac-k { color: #888; }
+    .agent-card .ac-v { font-family: 'Courier New', monospace; font-weight: bold; }
+    .agent-card.done { opacity: .85; }
+    .done-badge { font-size: 10px; padding: 2px 6px; border-radius: 3px; background: #efe; color: #060; border: 1px solid #cfc; margin-left: 5px; }
+
+    /* ── Results table ── */
+    #resultsSection { display: none; }
+    #resultsSection.visible { display: block; }
+    .results-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .results-table th { background: #f5f5f5; padding: 7px 10px; text-align: left; font-weight: normal; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: #888; border-bottom: 2px solid #ddd; }
+    .results-table td { padding: 7px 10px; border-bottom: 1px solid #eee; font-family: 'Courier New', monospace; }
+    .results-table tr:first-child td { font-weight: bold; }
+    .winner td { background: #f0f8f0; }
+    .agent-name-cell { display: flex; align-items: center; gap: 7px; font-family: Georgia, serif; }
+    .color-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
   </style>
 </head>
 <body>
 <div class="app">
 
+  <!-- Header -->
   <header class="header">
     <div>
-      <h1>Edge-RL Digital Twin</h1>
-      <div class="subtitle">DQN Policy · Real Simulator · Live Ripening Control</div>
+      <h1>Edge-RL Digital Twin — Multi-Agent Simulator</h1>
+      <div class="sub">DQN · PPO · A2C · Fixed-Day · Fixed-Stage5 · Random · Variants A/B/C</div>
     </div>
     <div class="header-right">
       <span class="badge badge-conn" id="connBadge">DISCONNECTED</span>
-      <span class="badge badge-day" id="dayCounter">Day — / —</span>
+      <span class="badge badge-seed" id="seedBadge">seed —</span>
+      <span class="badge badge-target" id="targetBadge">target —</span>
     </div>
   </header>
 
-  <div class="grid">
+  <!-- Config panel -->
+  <div class="config-panel" id="configPanel">
+
+    <div class="cfg-section">
+      <div class="cfg-label">Comparison group</div>
+      <div class="group-btns">
+        <button class="grp-btn" id="grpAlgo"      onclick="setGroup('algo')">Algorithms</button>
+        <button class="grp-btn" id="grpBaseline"  onclick="setGroup('baseline')">Baselines</button>
+        <button class="grp-btn" id="grpVariant"   onclick="setGroup('variant')">Variants</button>
+        <button class="grp-btn" id="grpAll"       onclick="setGroup('all')">All together</button>
+        <button class="grp-btn active" id="grpSingle" onclick="setGroup('single')">Single agent</button>
+      </div>
+    </div>
+
+    <div class="cfg-divider"></div>
+
+    <div class="cfg-section" id="agentPickerSection">
+      <div class="cfg-label" id="agentPickerLabel">Agent</div>
+      <div class="agent-grid" id="agentPicker"></div>
+    </div>
+
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <div class="btn-group">
+      <button class="btn btn-primary" id="btnStart">▶ Start</button>
+      <button class="btn" id="btnPause" disabled>⏸ Pause</button>
+      <button class="btn" id="btnStep">⏭ Step</button>
+      <button class="btn" id="btnReset">↺ New scenario</button>
+    </div>
+    <div class="speed-ctl">
+      Speed: <input type="range" id="speedSlider" min="1" max="20" value="3">
+      <span id="speedLabel">3×</span>
+    </div>
+  </div>
+
+  <!-- Single-mode view -->
+  <div class="main-single" id="singleView">
 
     <div class="panel">
       <h2>🍅 Environment</h2>
@@ -204,9 +226,9 @@
     </div>
 
     <div class="panel">
-      <h2>🧠 RL Agent (DQN)</h2>
+      <h2>🧠 RL Agent (<span id="agentTitle">DQN</span>)</h2>
       <div class="obs-vector" id="obsVec">obs: [—]</div>
-      <div class="q-section-label">Q-values</div>
+      <div class="q-section-label">Q-values (DQN only)</div>
       <div class="qrow">
         <span class="qname">⏸ Maintain</span>
         <div class="qbar-bg"><div class="qbar-fill" id="qbar0"></div></div>
@@ -234,93 +256,243 @@
 
     <div class="panel">
       <h2>📈 Trajectory</h2>
-      <canvas id="chart"></canvas>
+      <canvas id="singleChart"></canvas>
       <div class="chart-legend">
         <div class="legend-item"><div class="legend-swatch" style="background:#2a7a3b"></div>Chromatic X</div>
         <div class="legend-item"><div class="legend-swatch" style="background:#c05a2a"></div>Temp (norm.)</div>
         <div class="legend-item"><div class="legend-swatch" style="background:#3a6abf"></div>Humidity (norm.)</div>
-        <div class="legend-item">● actions (grey/red/blue)</div>
+        <div class="legend-item">● actions</div>
       </div>
     </div>
 
   </div>
 
-  <div class="controls">
-    <div class="btn-group">
-      <button class="btn btn-primary" id="btnStart">▶ Start</button>
-      <button class="btn" id="btnPause" disabled>⏸ Pause</button>
-      <button class="btn" id="btnStep">⏭ Step</button>
-      <button class="btn" id="btnReset">↺ Reset</button>
+  <!-- Compare-mode view -->
+  <div class="main-compare" id="compareView" style="display:none">
+
+    <div class="panel">
+      <h2>📊 Chromatic Index X — All Agents (lower = more ripe)</h2>
+      <canvas id="compareChart"></canvas>
+      <div class="chart-legend" id="compareLegend"></div>
+      <div class="compare-cards" id="compareCards"></div>
     </div>
-    <div class="speed-control">
-      Speed:
-      <input type="range" id="speedSlider" min="1" max="20" value="3">
-      <span id="speedLabel">3×</span>
-    </div>
-    <div class="mode-group">
-      <button class="mode-btn active" id="modeRl">DQN Agent</button>
-      <button class="mode-btn" id="modeFixed">Fixed</button>
-      <button class="mode-btn" id="modeManual">Manual</button>
-    </div>
+
   </div>
 
-</div>
+  <!-- Results table (appears when compare_done) -->
+  <div class="panel" id="resultsSection">
+    <h2>📋 Episode Results</h2>
+    <table class="results-table" id="resultsTable">
+      <thead>
+        <tr>
+          <th>Agent</th>
+          <th>Total Reward</th>
+          <th>Quality</th>
+          <th>Timing Error</th>
+          <th>Harvest Day</th>
+        </tr>
+      </thead>
+      <tbody id="resultsTbody"></tbody>
+    </table>
+  </div>
+
+</div><!-- .app -->
+
 <script>
-// ── Constants ──────────────────────────────────────────
+// ── Constants ─────────────────────────────────────────────────────
 const STAGES = ['Green','Breaker','Turning','Pink','Light Red','Red'];
 const ROYG_X   = [1.0, 0.85, 0.65, 0.40, 0.15, 0.0];
 const ROYG_RGB = [[58,125,68],[125,165,58],[201,168,37],[232,140,58],[217,79,58],[192,48,42]];
-const ACTION_LABELS = { maintain:'⏸ Maintain', heat:'🔥 Heat +1°C', cool:'❄️ Cool −1°C' };
+const ACTION_LABELS = { maintain:'⏸ Maintain', heat:'🔥 Heat', cool:'❄️ Cool' };
 const ACTION_COLORS = ['#999','#c84b38','#3a6abf'];
 
-// ── State ──────────────────────────────────────────────
-let ws, reconnectTimer;
-let hist = { hours:[], ripeness:[], temperature:[], humidity:[], actions:[] };
+// Preset comparison groups
+const GROUPS = {
+  algo:     { label:'Algorithms', agents:['dqn','ppo','a2c'] },
+  baseline: { label:'Baselines',  agents:['dqn','fixed_day','fixed_stage5','random'] },
+  variant:  { label:'Variants',   agents:['dqn_a','dqn','dqn_c'] },
+  all:      { label:'All',        agents:['dqn','ppo','a2c','fixed_day','fixed_stage5','random'] },
+  single:   { label:'Single',     agents:[] },
+};
 
-// ── WebSocket ──────────────────────────────────────────
+// ── App state ─────────────────────────────────────────────────────
+let ws, reconnectTimer;
+let catalogue = {};            // agent_id → {label, color, variant, available}
+let currentGroup = 'single';
+let selectedAgents = new Set(['dqn']);  // single: one; compare: multiple
+let compareMode = false;
+let singleHist = { hours:[], ripeness:[], temperature:[], humidity:[], actions:[] };
+let compareData = {};          // agent_id → latest agent state
+let simRunning = false;
+
+// ── WebSocket ─────────────────────────────────────────────────────
 function connect() {
   ws = new WebSocket('ws://127.0.0.1:8765');
-  ws.onopen  = () => { setConn(true);  clearTimeout(reconnectTimer); };
+  ws.onopen  = () => { setConn(true); clearTimeout(reconnectTimer); };
   ws.onclose = () => { setConn(false); reconnectTimer = setTimeout(connect, 2000); };
   ws.onerror = () => ws.close();
-  ws.onmessage = e => update(JSON.parse(e.data));
+  ws.onmessage = e => dispatch(JSON.parse(e.data));
 }
-function send(msg) {
-  if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
-}
+function send(msg) { if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg)); }
 function setConn(ok) {
   const b = document.getElementById('connBadge');
   b.textContent = ok ? 'CONNECTED' : 'DISCONNECTED';
-  b.className = 'badge badge-conn' + (ok ? ' connected' : '');
+  b.className = 'badge badge-conn' + (ok ? ' on' : '');
 }
 
-// ── ROYG colour ────────────────────────────────────────
-function roygColor(x) {
-  x = Math.max(0, Math.min(1, x));
-  for (let i = 0; i < ROYG_X.length - 1; i++) {
-    if (x >= ROYG_X[i + 1]) {
-      const t = (x - ROYG_X[i+1]) / (ROYG_X[i] - ROYG_X[i+1]);
-      const a = ROYG_RGB[i], b = ROYG_RGB[i+1];
-      return `rgb(${Math.round(a[0]+t*(b[0]-a[0]))},${Math.round(a[1]+t*(b[1]-a[1]))},${Math.round(a[2]+t*(b[2]-a[2]))})`;
-    }
+// ── Message dispatch ──────────────────────────────────────────────
+function dispatch(s) {
+  const ev = s.event;
+  if (ev === 'catalogue') { buildCatalogue(s.agents); return; }
+  if (s.mode === 'single' || ev === 'reset') updateSingle(s);
+  else if (s.mode === 'compare') updateCompare(s);
+  if (ev === 'done')         onSingleDone(s);
+  if (ev === 'compare_done') onCompareDone(s);
+}
+
+// ── Catalogue ─────────────────────────────────────────────────────
+function buildCatalogue(agents) {
+  catalogue = agents;
+  renderAgentPicker();
+}
+
+function renderAgentPicker() {
+  const picker = document.getElementById('agentPicker');
+  picker.innerHTML = '';
+  const label = document.getElementById('agentPickerLabel');
+
+  if (currentGroup === 'single') {
+    label.textContent = 'Agent';
+    // Radio-style: one selectable at a time
+    const order = ['dqn','ppo','a2c','dqn_a','dqn_c','fixed_day','fixed_stage5','random'];
+    order.forEach(aid => {
+      const def = catalogue[aid];
+      if (!def) return;
+      const chip = document.createElement('div');
+      chip.className = 'agent-chip' + (selectedAgents.has(aid) ? ' selected' : '') + (!def.available ? ' disabled' : '');
+      chip.style.setProperty('--c', def.color);
+      chip.innerHTML = `<div class="chip-dot"></div>${def.label}`;
+      if (def.available) chip.onclick = () => selectSingleAgent(aid);
+      picker.appendChild(chip);
+    });
+  } else {
+    // Checkbox-style: current group preset
+    label.textContent = 'Agents in comparison';
+    const groupAgents = GROUPS[currentGroup]?.agents || [];
+    groupAgents.forEach(aid => {
+      const def = catalogue[aid];
+      if (!def) return;
+      const chip = document.createElement('div');
+      chip.className = 'agent-chip' + (selectedAgents.has(aid) ? ' selected' : '') + (!def.available ? ' disabled' : '');
+      chip.style.setProperty('--c', def.color);
+      chip.innerHTML = `<div class="chip-dot"></div>${def.label}`;
+      if (def.available) chip.onclick = () => toggleCompareAgent(aid, chip);
+      picker.appendChild(chip);
+    });
   }
-  return `rgb(${ROYG_RGB.at(-1).join(',')})`;
 }
 
-// ── UI update ──────────────────────────────────────────
-function update(s) {
+// ── Group switching ───────────────────────────────────────────────
+function setGroup(group) {
+  currentGroup = group;
+  document.querySelectorAll('.grp-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('grp' + group.charAt(0).toUpperCase() + group.slice(1)).classList.add('active');
+
+  if (group === 'single') {
+    compareMode = false;
+    selectedAgents = new Set(['dqn']);
+    showSingleView();
+    renderAgentPicker();
+    sendSingleMode('dqn');
+  } else {
+    compareMode = true;
+    const agents = (GROUPS[group]?.agents || []).filter(aid => catalogue[aid]?.available);
+    selectedAgents = new Set(agents);
+    showCompareView(agents);
+    renderAgentPicker();
+    sendCompareMode(agents);
+  }
+}
+
+function selectSingleAgent(aid) {
+  if (!catalogue[aid]?.available) return;
+  selectedAgents = new Set([aid]);
+  renderAgentPicker();
+  sendSingleMode(aid);
+}
+
+function toggleCompareAgent(aid, chip) {
+  if (selectedAgents.has(aid)) {
+    if (selectedAgents.size <= 2) return; // keep at least 2
+    selectedAgents.delete(aid);
+    chip.classList.remove('selected');
+  } else {
+    selectedAgents.add(aid);
+    chip.classList.add('selected');
+  }
+  const agents = [...selectedAgents];
+  sendCompareMode(agents);
+}
+
+// ── View switching ────────────────────────────────────────────────
+function showSingleView() {
+  document.getElementById('singleView').style.display = '';
+  document.getElementById('compareView').style.display = 'none';
+  hideResults();
+}
+
+function showCompareView(agents) {
+  document.getElementById('singleView').style.display = 'none';
+  document.getElementById('compareView').style.display = '';
+  hideResults();
+  buildCompareCards(agents);
+  buildCompareLegend(agents);
+}
+
+function hideResults() {
+  document.getElementById('resultsSection').className = 'panel';
+}
+
+// ── Send commands ─────────────────────────────────────────────────
+function sendSingleMode(aid) {
+  resetUIState();
+  send({ cmd: 'set_single', agent: aid });
+}
+
+function sendCompareMode(agents) {
+  resetUIState();
+  send({ cmd: 'set_compare', agents });
+}
+
+function resetUIState() {
+  simRunning = false;
+  document.getElementById('btnStart').disabled = false;
+  document.getElementById('btnPause').disabled = true;
+  singleHist = { hours:[], ripeness:[], temperature:[], humidity:[], actions:[] };
+  compareData = {};
+  hideResults();
+  resizeSingleChart();
+  if (compareMode) resizeCompareChart();
+}
+
+// ── Update single mode ────────────────────────────────────────────
+function updateSingle(s) {
+  // Header
+  document.getElementById('seedBadge').textContent = `seed ${s.step ?? '—'}`;
+  document.getElementById('targetBadge').textContent = `target ${s.targetDay ?? '—'}d`;
+  document.getElementById('agentTitle').textContent = s.agentLabel ?? 'Agent';
+
   // Environment
   document.getElementById('tomatoColor').style.background = roygColor(s.ripeness);
-  document.getElementById('xValue').textContent  = s.ripeness.toFixed(3);
+  document.getElementById('xValue').textContent = s.ripeness?.toFixed(3) ?? '—';
   document.getElementById('stageLabel').textContent = STAGES[Math.min(s.ripenessStage ?? 0, 5)];
-  document.getElementById('envTemp').textContent  = s.temperature.toFixed(1) + ' °C';
-  document.getElementById('envHum').textContent   = s.humidity.toFixed(0) + ' %';
-  document.getElementById('envDay').textContent   = s.days.toFixed(1) + ' / ' + s.targetDay + 'd';
-  document.getElementById('envStep').textContent  = s.step;
-  document.getElementById('dayCounter').textContent = `Day ${s.days.toFixed(1)} / ${s.targetDay}`;
+  document.getElementById('envTemp').textContent = (s.temperature?.toFixed(1) ?? '—') + ' °C';
+  document.getElementById('envHum').textContent = (s.humidity?.toFixed(0) ?? '—') + ' %';
+  document.getElementById('envDay').textContent = (s.days?.toFixed(1) ?? '—') + ' / ' + (s.targetDay ?? '—') + 'd';
+  document.getElementById('envStep').textContent = s.step ?? '—';
 
   // Q-values
-  if (s.qValues && s.qValues.length === 3) {
+  if (s.qValues?.length === 3) {
     const qv = s.qValues;
     const maxQ = Math.max(...qv), minQ = Math.min(...qv), range = maxQ - minQ || 1;
     for (let i = 0; i < 3; i++) {
@@ -341,130 +513,315 @@ function update(s) {
     document.getElementById('chosenAction').textContent = ACTION_LABELS[s.action] ?? s.action;
 
   // Rewards
-  const setReward = (id, val) => {
+  const setRw = (id, val) => {
     const el = document.getElementById(id);
-    el.textContent = val.toFixed(val < 100 ? 3 : 1);
-    el.className = 'rv ' + (val >= 0 ? 'pos' : 'neg');
+    el.textContent = val?.toFixed(3) ?? '—';
+    el.className = 'rv ' + ((val ?? 0) >= 0 ? 'pos' : 'neg');
   };
-  if (s.reward !== undefined)      setReward('stepReward',  s.reward);
-  if (s.totalReward !== undefined) setReward('totalReward', s.totalReward);
+  if (s.reward !== undefined)      setRw('stepReward',  s.reward);
+  if (s.totalReward !== undefined) setRw('totalReward', s.totalReward);
 
-  // History → chart
-  if (s.history && s.history.hours.length) { hist = s.history; drawChart(); }
-
-  // Episode done
-  if (s.event === 'done') {
-    document.getElementById('btnStart').disabled = false;
-    document.getElementById('btnPause').disabled = true;
-    if (s.harvestQuality !== undefined)
-      document.getElementById('chosenAction').textContent =
-        `Harvested · Quality: ${(s.harvestQuality * 100).toFixed(1)}%`;
-  }
+  // Chart
+  if (s.history?.hours?.length) { singleHist = s.history; drawSingleChart(); }
 }
 
-// ── Controls ───────────────────────────────────────────
+function onSingleDone(s) {
+  simRunning = false;
+  document.getElementById('btnStart').disabled = false;
+  document.getElementById('btnPause').disabled = true;
+  if (s.harvestQuality !== undefined)
+    document.getElementById('chosenAction').textContent =
+      `Harvested · Quality: ${(s.harvestQuality * 100).toFixed(1)}%`;
+}
+
+// ── Update compare mode ───────────────────────────────────────────
+function updateCompare(s) {
+  document.getElementById('targetBadge').textContent = `target ${s.targetDay ?? '—'}d`;
+  document.getElementById('seedBadge').textContent = `seed ${s.seed ?? '—'}`;
+
+  compareData = s.agents;
+  updateCompareCards(s.agents);
+  drawCompareChart(s.agents, s.targetDay);
+}
+
+function onCompareDone(s) {
+  simRunning = false;
+  document.getElementById('btnStart').disabled = false;
+  document.getElementById('btnPause').disabled = true;
+  updateCompare(s);
+  showResultsTable(s.agents);
+}
+
+// ── Compare cards ─────────────────────────────────────────────────
+function buildCompareCards(agentIds) {
+  const container = document.getElementById('compareCards');
+  container.innerHTML = '';
+  agentIds.forEach(aid => {
+    const def = catalogue[aid];
+    if (!def) return;
+    const card = document.createElement('div');
+    card.className = 'agent-card';
+    card.id = `card-${aid}`;
+    card.style.setProperty('--c', def.color);
+    card.innerHTML = `
+      <div class="ac-label">${def.label}</div>
+      <div class="ac-row"><span class="ac-k">Reward</span><span class="ac-v" id="card-rew-${aid}">—</span></div>
+      <div class="ac-row"><span class="ac-k">X</span><span class="ac-v" id="card-x-${aid}">—</span></div>
+      <div class="ac-row"><span class="ac-k">Action</span><span class="ac-v" id="card-act-${aid}">—</span></div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+function updateCompareCards(agents) {
+  Object.entries(agents).forEach(([aid, ag]) => {
+    const rew = document.getElementById(`card-rew-${aid}`);
+    const x   = document.getElementById(`card-x-${aid}`);
+    const act = document.getElementById(`card-act-${aid}`);
+    if (rew) rew.textContent = ag.totalReward?.toFixed(2) ?? '—';
+    if (x)   x.textContent   = ag.ripeness?.toFixed(3) ?? '—';
+    if (act) act.textContent  = ['Maint','Heat','Cool'][ag.action] ?? '—';
+    const card = document.getElementById(`card-${aid}`);
+    if (card && ag.done) card.classList.add('done');
+  });
+}
+
+function buildCompareLegend(agentIds) {
+  const leg = document.getElementById('compareLegend');
+  leg.innerHTML = '';
+  agentIds.forEach(aid => {
+    const def = catalogue[aid];
+    if (!def) return;
+    const item = document.createElement('div');
+    item.className = 'legend-item';
+    item.innerHTML = `<div class="legend-swatch-dot" style="background:${def.color}"></div>${def.label}`;
+    leg.appendChild(item);
+  });
+}
+
+// ── Results table ─────────────────────────────────────────────────
+function showResultsTable(agents) {
+  const section = document.getElementById('resultsSection');
+  const tbody   = document.getElementById('resultsTbody');
+  tbody.innerHTML = '';
+
+  const rows = Object.entries(agents).map(([aid, ag]) => ({
+    aid, ag,
+    reward: ag.totalReward ?? -999,
+  })).sort((a, b) => b.reward - a.reward);
+
+  rows.forEach(({ aid, ag }, i) => {
+    const def = catalogue[aid];
+    const tr = document.createElement('tr');
+    if (i === 0) tr.className = 'winner';
+    tr.innerHTML = `
+      <td><div class="agent-name-cell"><div class="color-dot" style="background:${def?.color ?? '#888'}"></div>${def?.label ?? aid}</div></td>
+      <td>${ag.totalReward?.toFixed(3) ?? '—'}</td>
+      <td>${ag.harvestQuality !== undefined ? (ag.harvestQuality * 100).toFixed(1) + '%' : '—'}</td>
+      <td>${ag.timingError !== undefined ? ag.timingError.toFixed(2) + 'd' : '—'}</td>
+      <td>${ag.harvestDay !== undefined ? ag.harvestDay.toFixed(1) + 'd' : '—'}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  section.className = 'panel visible';
+}
+
+// ── ROYG colour ───────────────────────────────────────────────────
+function roygColor(x) {
+  x = Math.max(0, Math.min(1, x));
+  for (let i = 0; i < ROYG_X.length - 1; i++) {
+    if (x >= ROYG_X[i + 1]) {
+      const t = (x - ROYG_X[i+1]) / (ROYG_X[i] - ROYG_X[i+1]);
+      const a = ROYG_RGB[i], b = ROYG_RGB[i+1];
+      return `rgb(${Math.round(a[0]+t*(b[0]-a[0]))},${Math.round(a[1]+t*(b[1]-a[1]))},${Math.round(a[2]+t*(b[2]-a[2]))})`;
+    }
+  }
+  return `rgb(${ROYG_RGB.at(-1).join(',')})`;
+}
+
+// ── Single chart ──────────────────────────────────────────────────
+const singleCanvas = document.getElementById('singleChart');
+const sCtx = singleCanvas.getContext('2d');
+
+function resizeSingleChart() {
+  singleCanvas.width  = singleCanvas.clientWidth  || 500;
+  singleCanvas.height = singleCanvas.clientHeight || 200;
+  drawSingleChart();
+}
+
+function drawSingleChart() {
+  const W = singleCanvas.width, H = singleCanvas.height;
+  const p = { l:36, r:10, t:10, b:20 };
+  const cW = W - p.l - p.r, cH = H - p.t - p.b;
+  sCtx.clearRect(0, 0, W, H);
+  sCtx.fillStyle = '#fafafa'; sCtx.fillRect(0, 0, W, H);
+
+  const hrs = singleHist.hours;
+  if (!hrs?.length) {
+    sCtx.fillStyle = '#ccc'; sCtx.font = '12px Georgia'; sCtx.textAlign = 'center';
+    sCtx.fillText('No data — press ▶ Start', W/2, H/2);
+    return;
+  }
+  const maxH = hrs.at(-1) || 1;
+
+  // Grid
+  sCtx.strokeStyle = '#eee'; sCtx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = p.t + (i/4)*cH;
+    sCtx.beginPath(); sCtx.moveTo(p.l, y); sCtx.lineTo(p.l+cW, y); sCtx.stroke();
+    sCtx.fillStyle = '#aaa'; sCtx.font = '9px Georgia'; sCtx.textAlign = 'right';
+    sCtx.fillText((1-i/4).toFixed(2), p.l-4, y+3);
+  }
+
+  // Harvest threshold
+  const threshY = p.t + (1-0.15)*cH;
+  sCtx.strokeStyle = '#c84b38'; sCtx.setLineDash([4,4]); sCtx.lineWidth = 1;
+  sCtx.beginPath(); sCtx.moveTo(p.l, threshY); sCtx.lineTo(p.l+cW, threshY); sCtx.stroke();
+  sCtx.setLineDash([]);
+
+  drawLine(sCtx, hrs, singleHist.ripeness,    '#2a7a3b', 2,   v => v,                   p, cW, cH, maxH);
+  drawLine(sCtx, hrs, singleHist.temperature, '#c05a2a', 1.5, v => (v-12.5)/27.5,        p, cW, cH, maxH);
+  if (singleHist.humidity?.length)
+    drawLine(sCtx, hrs, singleHist.humidity,  '#3a6abf', 1.5, v => (v-40)/59,            p, cW, cH, maxH);
+
+  hrs.forEach((h, i) => {
+    const x = p.l + (h/maxH)*cW;
+    sCtx.beginPath(); sCtx.arc(x, p.t+cH+10, 2.5, 0, Math.PI*2);
+    sCtx.fillStyle = ACTION_COLORS[singleHist.actions[i]] ?? '#999'; sCtx.fill();
+  });
+}
+
+// ── Compare chart ─────────────────────────────────────────────────
+const cmpCanvas = document.getElementById('compareChart');
+const cCtx = cmpCanvas.getContext('2d');
+
+function resizeCompareChart() {
+  cmpCanvas.width  = cmpCanvas.clientWidth  || 800;
+  cmpCanvas.height = cmpCanvas.clientHeight || 320;
+  drawCompareChart(compareData);
+}
+
+function drawCompareChart(agents, targetDay) {
+  const W = cmpCanvas.width, H = cmpCanvas.height;
+  const p = { l:40, r:14, t:14, b:30 };
+  const cW = W - p.l - p.r, cH = H - p.t - p.b;
+  cCtx.clearRect(0, 0, W, H);
+  cCtx.fillStyle = '#fafafa'; cCtx.fillRect(0, 0, W, H);
+
+  if (!agents || !Object.keys(agents).length) {
+    cCtx.fillStyle = '#ccc'; cCtx.font = '13px Georgia'; cCtx.textAlign = 'center';
+    cCtx.fillText('No data — press ▶ Start', W/2, H/2);
+    return;
+  }
+
+  // Find max hours across all agents
+  let maxHours = 0;
+  Object.values(agents).forEach(ag => {
+    const hrs = ag.history?.hours;
+    if (hrs?.length) maxHours = Math.max(maxHours, hrs.at(-1));
+  });
+  if (!maxHours) maxHours = 168; // 7 days fallback
+  const maxDays = maxHours / 24;
+
+  // Y axis grid (X values 0–1)
+  cCtx.strokeStyle = '#eee'; cCtx.lineWidth = 1;
+  for (let i = 0; i <= 5; i++) {
+    const y = p.t + (i/5)*cH;
+    cCtx.beginPath(); cCtx.moveTo(p.l, y); cCtx.lineTo(p.l+cW, y); cCtx.stroke();
+    cCtx.fillStyle = '#aaa'; cCtx.font = '9px Georgia'; cCtx.textAlign = 'right';
+    cCtx.fillText((1-i/5).toFixed(1), p.l-5, y+3);
+  }
+
+  // X axis labels (days)
+  cCtx.fillStyle = '#aaa'; cCtx.font = '9px Georgia'; cCtx.textAlign = 'center';
+  for (let d = 0; d <= Math.ceil(maxDays); d++) {
+    const x = p.l + (d/maxDays)*cW;
+    cCtx.fillText(d + 'd', x, p.t+cH+18);
+    cCtx.beginPath(); cCtx.strokeStyle = '#eee'; cCtx.lineWidth = 1;
+    cCtx.moveTo(x, p.t); cCtx.lineTo(x, p.t+cH); cCtx.stroke();
+  }
+
+  // Harvest threshold line at X=0.15
+  const threshY = p.t + (1-0.15)*cH;
+  cCtx.strokeStyle = '#e88'; cCtx.setLineDash([5,5]); cCtx.lineWidth = 1;
+  cCtx.beginPath(); cCtx.moveTo(p.l, threshY); cCtx.lineTo(p.l+cW, threshY); cCtx.stroke();
+  cCtx.fillStyle = '#e88'; cCtx.font = '9px Georgia'; cCtx.textAlign = 'left';
+  cCtx.fillText('ripe (X=0.15)', p.l+3, threshY-3);
+
+  // Target day vertical line
+  if (targetDay) {
+    const tx = p.l + (targetDay/maxDays)*cW;
+    cCtx.strokeStyle = '#c8a838'; cCtx.setLineDash([6,4]); cCtx.lineWidth = 1.5;
+    cCtx.beginPath(); cCtx.moveTo(tx, p.t); cCtx.lineTo(tx, p.t+cH); cCtx.stroke();
+    cCtx.fillStyle = '#c8a838'; cCtx.textAlign = 'left';
+    cCtx.fillText(`target ${targetDay}d`, tx+3, p.t+12);
+  }
+  cCtx.setLineDash([]);
+
+  // Agent lines
+  Object.entries(agents).forEach(([aid, ag]) => {
+    const hrs = ag.history?.hours;
+    const rip = ag.history?.ripeness;
+    if (!hrs?.length || !rip?.length) return;
+    const def = catalogue[aid];
+    if (!def) return;
+    drawLine(cCtx, hrs, rip, def.color, 2.5, v => v, p, cW, cH, maxHours);
+
+    // End dot
+    const lastX = p.l + (hrs.at(-1)/maxHours)*cW;
+    const lastY = p.t + (1-Math.max(0, Math.min(1, rip.at(-1))))*cH;
+    cCtx.beginPath(); cCtx.arc(lastX, lastY, 5, 0, Math.PI*2);
+    cCtx.fillStyle = ag.done ? def.color : 'white';
+    cCtx.strokeStyle = def.color; cCtx.lineWidth = 2; cCtx.fill(); cCtx.stroke();
+  });
+}
+
+// ── Shared line drawing ───────────────────────────────────────────
+function drawLine(ctx, hours, data, color, lw, norm, p, cW, cH, maxH) {
+  if (!data?.length) return;
+  ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.beginPath();
+  data.forEach((v, i) => {
+    const x = p.l + (hours[i]/maxH)*cW;
+    const y = p.t + (1-Math.max(0, Math.min(1, norm(v))))*cH;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+}
+
+// ── Controls ──────────────────────────────────────────────────────
 document.getElementById('btnStart').onclick = () => {
   send({ cmd: 'start' });
+  simRunning = true;
   document.getElementById('btnStart').disabled = true;
   document.getElementById('btnPause').disabled = false;
 };
 document.getElementById('btnPause').onclick = () => {
   send({ cmd: 'pause' });
+  simRunning = false;
   document.getElementById('btnStart').disabled = false;
   document.getElementById('btnPause').disabled = true;
 };
 document.getElementById('btnStep').onclick  = () => send({ cmd: 'step' });
 document.getElementById('btnReset').onclick = () => {
   send({ cmd: 'reset' });
-  hist = { hours:[], ripeness:[], temperature:[], humidity:[], actions:[] };
-  document.getElementById('btnStart').disabled  = false;
-  document.getElementById('btnPause').disabled  = true;
-  document.getElementById('chosenAction').textContent = '—';
-  document.getElementById('stepReward').textContent   = '—';
-  document.getElementById('totalReward').textContent  = '0.00';
-  drawChart();
+  resetUIState();
 };
 document.getElementById('speedSlider').oninput = function() {
   document.getElementById('speedLabel').textContent = this.value + '×';
   send({ cmd: 'set_speed', speed: +this.value });
 };
-['Rl','Fixed','Manual'].forEach(name => {
-  document.getElementById('mode' + name).onclick = () => {
-    send({ cmd: 'set_mode', mode: name.toLowerCase() });
-    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById('mode' + name).classList.add('active');
-  };
-});
 
-// ── Chart ──────────────────────────────────────────────
-const canvas = document.getElementById('chart');
-const ctx    = canvas.getContext('2d');
-
-function resizeChart() {
-  canvas.width  = canvas.clientWidth  || 400;
-  canvas.height = canvas.clientHeight || 200;
-  drawChart();
+// ── Resize handling ───────────────────────────────────────────────
+function resizeAll() {
+  resizeSingleChart();
+  if (compareMode) resizeCompareChart();
 }
 
-function drawChart() {
-  const W = canvas.width, H = canvas.height;
-  const p = { l:36, r:10, t:10, b:20 };
-  const cW = W - p.l - p.r, cH = H - p.t - p.b;
+window.addEventListener('resize', resizeAll);
+requestAnimationFrame(() => { resizeSingleChart(); resizeCompareChart(); });
 
-  ctx.clearRect(0, 0, W, H);
-  ctx.fillStyle = '#fafafa'; ctx.fillRect(0, 0, W, H);
-
-  const hrs = hist.hours;
-  if (!hrs || hrs.length < 2) {
-    ctx.fillStyle = '#ccc'; ctx.font = '12px Georgia'; ctx.textAlign = 'center';
-    ctx.fillText('No data yet — press ▶ Start', W / 2, H / 2);
-    return;
-  }
-
-  const maxH = hrs.at(-1) || 1;
-
-  // Y-axis grid + labels
-  ctx.strokeStyle = '#eee'; ctx.lineWidth = 1;
-  for (let i = 0; i <= 4; i++) {
-    const y = p.t + (i / 4) * cH;
-    ctx.beginPath(); ctx.moveTo(p.l, y); ctx.lineTo(p.l + cW, y); ctx.stroke();
-    ctx.fillStyle = '#aaa'; ctx.font = '9px Georgia'; ctx.textAlign = 'right';
-    ctx.fillText((1 - i/4).toFixed(2), p.l - 4, y + 3);
-  }
-
-  // Harvest threshold dashed line at X=0.15
-  const threshY = p.t + (1 - 0.15) * cH;
-  ctx.strokeStyle = '#c84b38'; ctx.setLineDash([4,4]); ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(p.l, threshY); ctx.lineTo(p.l + cW, threshY); ctx.stroke();
-  ctx.setLineDash([]);
-
-  // Data lines
-  line(hist.ripeness,    '#2a7a3b', 2,   v => v);
-  line(hist.temperature, '#c05a2a', 1.5, v => (v - 12.5) / 27.5);
-  if (hist.humidity && hist.humidity.length)
-    line(hist.humidity,  '#3a6abf', 1.5, v => (v - 40) / 59);
-
-  // Action dots strip
-  hrs.forEach((h, i) => {
-    const x = p.l + (h / maxH) * cW;
-    ctx.beginPath(); ctx.arc(x, p.t + cH + 10, 2.5, 0, Math.PI * 2);
-    ctx.fillStyle = ACTION_COLORS[hist.actions[i]] ?? '#999'; ctx.fill();
-  });
-
-  function line(data, color, lw, norm) {
-    if (!data || data.length < 2) return;
-    ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.beginPath();
-    data.forEach((v, i) => {
-      const x = p.l + (hrs[i] / maxH) * cW;
-      const y = p.t + (1 - Math.max(0, Math.min(1, norm(v)))) * cH;
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-    });
-    ctx.stroke();
-  }
-}
-
-window.addEventListener('resize', resizeChart);
-requestAnimationFrame(resizeChart);
+// ── Boot ──────────────────────────────────────────────────────────
 connect();
 </script>
 </body>

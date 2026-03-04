@@ -1,8 +1,9 @@
 """
-WebSocket backend for the Digital Twin visualization.
+WebSocket backend for the Digital Twin visualization — multi-agent edition.
 
-Runs the ACTUAL trained DQN model and Python TomatoRipeningSimulator,
-streaming real state to the browser frontend every simulation step.
+Supports:
+  - Single-agent mode:  any one policy (DQN/PPO/A2C/baselines) + any variant (A/B/C)
+  - Compare mode:       multiple agents run on the same seed in lockstep
 
 Usage:
     python digital_twin_viz/server.py
@@ -11,195 +12,355 @@ from __future__ import annotations
 
 import asyncio
 import json
+import random
 import sys
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import torch
 
-# Project root
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 import websockets
-from stable_baselines3 import DQN
-
-from ml_training.rl.environment import TomatoRipeningEnv
-from ml_training.rl.simulator import TomatoRipeningSimulator, SimulatorConfig
+from stable_baselines3 import DQN, PPO, A2C
 import yaml
 
-# ── Load config ──────────────────────────────────────────────────────
-CONFIG_PATH = ROOT / "ml_training" / "config.yaml"
-with open(CONFIG_PATH) as f:
-    config = yaml.safe_load(f)
+from ml_training.rl.environment import TomatoRipeningEnv
 
-# ── Load trained DQN ─────────────────────────────────────────────────
-MODEL_PATH = None
-for p in sorted(ROOT.glob("outputs/rl_*/final_model.zip"), reverse=True):
-    MODEL_PATH = p
-    break
-if MODEL_PATH is None:
-    print("ERROR: No trained RL model found in outputs/rl_*/final_model.zip")
-    sys.exit(1)
+# ── Agent catalogue ───────────────────────────────────────────────────
+_OUT = ROOT / "outputs"
 
-print(f"Loading DQN model from: {MODEL_PATH}")
-model = DQN.load(str(MODEL_PATH).replace(".zip", ""))
-print("✅ DQN model loaded successfully")
+AGENT_DEFS: dict[str, dict] = {
+    "dqn": {
+        "label": "DQN", "algo": "dqn",
+        "path": _OUT / "rl_20260303_174001" / "best_model" / "best_model.zip",
+        "variant": "B", "color": "#2a7a3b",
+    },
+    "ppo": {
+        "label": "PPO", "algo": "ppo",
+        "path": _OUT / "algo_comparison_20260226_210137" / "ppo" / "best_model" / "best_model.zip",
+        "variant": "B", "color": "#c84b38",
+    },
+    "a2c": {
+        "label": "A2C", "algo": "a2c",
+        "path": _OUT / "algo_comparison_20260226_210137" / "a2c" / "best_model" / "best_model.zip",
+        "variant": "B", "color": "#3a6abf",
+    },
+    "dqn_a": {
+        "label": "DQN Var-A", "algo": "dqn",
+        "path": _OUT / "rl_20260303_204723" / "best_model" / "best_model.zip",
+        "variant": "A", "color": "#c8a838",
+    },
+    "dqn_c": {
+        "label": "DQN Var-C", "algo": "dqn",
+        "path": _OUT / "rl_20260303_212521" / "best_model" / "best_model.zip",
+        "variant": "C", "color": "#7a4a8a",
+    },
+    "fixed_day": {
+        "label": "Fixed-Day", "algo": "baseline", "policy": "fixed_day",
+        "variant": "B", "color": "#888888",
+    },
+    "fixed_stage5": {
+        "label": "Fixed-Stage5", "algo": "baseline", "policy": "fixed_stage5",
+        "variant": "B", "color": "#e8883a",
+    },
+    "random": {
+        "label": "Random", "algo": "baseline", "policy": "random",
+        "variant": "B", "color": "#aaaaaa",
+    },
+}
 
-# ── Simulation state ─────────────────────────────────────────────────
-env: TomatoRipeningEnv | None = None
-obs: np.ndarray | None = None
-episode_info: dict = {}
-step_count: int = 0
-running: bool = False
-speed: int = 1
-mode: str = "rl"  # "rl", "fixed", "manual"
-manual_action: int = 0
-episode_history: list[dict] = []
-last_q_values: list[float] = [0.0, 0.0, 0.0]
+# ── Load all ML models at startup ─────────────────────────────────────
+_models: dict[str, Any] = {}
+_CLS = {"dqn": DQN, "ppo": PPO, "a2c": A2C}
 
+print("\nLoading models...")
+for _aid, _defn in AGENT_DEFS.items():
+    if _defn["algo"] == "baseline":
+        continue
+    _path = Path(_defn["path"])
+    if not _path.exists():
+        print(f"  WARNING: {_aid} — model not found ({_path.parent.parent.name})")
+        continue
+    _models[_aid] = _CLS[_defn["algo"]].load(str(_path).replace(".zip", ""))
+    print(f"  ✅ {_aid} ({_defn['algo'].upper()} {_defn['variant']}): {_path.parent.parent.name}")
+print(f"Models ready: {list(_models.keys())}\n")
 
-def reset_env():
-    """Reset the environment and return initial state."""
-    global env, obs, episode_info, step_count, running, episode_history
-    env = TomatoRipeningEnv(config=config)
-    obs, info = env.reset()
-    episode_info = info
-    step_count = 0
-    episode_history = []
-    return build_state_msg("reset")
+with open(ROOT / "ml_training" / "config.yaml") as f:
+    _BASE_CONFIG = yaml.safe_load(f)
 
-
-def do_step():
-    """Execute one actual simulation step using the real model."""
-    global obs, step_count, running, episode_history
-
-    if env is None:
-        return build_state_msg("error", error="Environment not initialized")
-
-    # Get action from the ACTUAL trained model or baseline
-    global last_q_values
-    if mode == "rl":
-        action, _ = model.predict(obs, deterministic=True)
-        action = int(action)
-        # Extract Q-values from the actual DQN network
-        with torch.no_grad():
-            obs_tensor = torch.tensor(obs, dtype=torch.float32).unsqueeze(0)
-            q_vals = model.q_net(obs_tensor).squeeze().tolist()
-            last_q_values = [float(v) for v in q_vals]
-    elif mode == "fixed":
-        # Fixed-day baseline: maintain temperature (auto-harvest handles termination)
-        action = 0
-        last_q_values = [0.0, 0.0, 0.0]
-    elif mode == "manual":
-        action = manual_action
-        last_q_values = [0.0, 0.0, 0.0]
-    else:
-        action = 0
-
-    # Step the REAL environment
-    obs_new, reward, terminated, truncated, info = env.step(action)
-    obs = obs_new
-    step_count += 1
-
-    # Record history
-    sim = env.simulator
-    step_data = {
-        "step": step_count,
-        "hours": sim.hours_elapsed,
-        "days": sim.hours_elapsed / 24.0,
-        "ripeness": float(sim.ripeness),
-        "temperature": float(sim.temperature),
-        "humidity": float(sim.humidity),
-        "hour_of_day": sim.hours_elapsed % 24.0,
-        "action": action,
-        "reward": float(reward),
-    }
-    episode_history.append(step_data)
-
-    if terminated or truncated:
-        running = False
-        return build_state_msg("done", action=action, reward=reward, info=info)
-
-    return build_state_msg("step", action=action, reward=reward, info=info)
+ACTION_NAMES = ["maintain", "heat", "cool"]
 
 
-def build_state_msg(event: str, **kwargs) -> dict:
-    """Build a state message to send to the frontend."""
-    if env is None:
-        return {"event": event, "error": "no environment"}
+# ── Per-connection session ────────────────────────────────────────────
+class SimSession:
+    """All simulation state for one WebSocket connection."""
 
-    sim = env.simulator
-    action_names = ["maintain", "heat", "cool"]
+    def __init__(self) -> None:
+        self.running = False
+        self.speed = 3
+        self.compare_mode = False
+        self.active_agent = "dqn"          # single mode
+        self.compare_agents: list[str] = ["dqn", "ppo", "a2c"]  # compare mode
+        self.manual_action = 0
+        self.shared_seed = 42
 
-    msg = {
-        "event": event,
-        "step": step_count,
-        "hours": round(float(sim.hours_elapsed), 2),
-        "days": round(float(sim.hours_elapsed) / 24.0, 2),
-        "targetDay": round(float(env.target_day), 1),
-        "ripeness": round(float(sim.ripeness), 4),
-        "ripenessStage": int(min(5, int((1.0 - float(sim.ripeness)) * 6))),
-        "temperature": round(float(sim.temperature), 2),
-        "humidity": round(float(sim.humidity), 2),
-        "hourOfDay": round(sim.hours_elapsed % 24.0, 1),
-        "quality": round(float(sim.compute_quality_score()), 4),
-        "isOverripe": bool(float(sim.ripeness) < 0.05),
-        "mode": mode,
-        "speed": speed,
-        "totalReward": round(float(sum(h["reward"] for h in episode_history)), 2),
-        "history": {
-            "hours": [float(h["hours"]) for h in episode_history[-200:]],
-            "ripeness": [float(h["ripeness"]) for h in episode_history[-200:]],
-            "temperature": [float(h["temperature"]) for h in episode_history[-200:]],
-            "humidity": [float(h["humidity"]) for h in episode_history[-200:]],
-            "actions": [int(h["action"]) for h in episode_history[-200:]],
-            "rewards": [float(h["reward"]) for h in episode_history[-200:]],
-        },
-        "observation": [float(v) for v in obs] if obs is not None else [],
-        "qValues": last_q_values,
-    }
+        # Single-agent state
+        self.env: TomatoRipeningEnv | None = None
+        self.obs: np.ndarray | None = None
+        self.step_count = 0
+        self.episode_history: list[dict] = []
+        self.last_q_values: list[float] = [0.0, 0.0, 0.0]
 
-    if "action" in kwargs:
-        msg["action"] = action_names[int(kwargs["action"])]
-        msg["actionId"] = int(kwargs["action"])
-    if "reward" in kwargs:
-        msg["reward"] = round(float(kwargs["reward"]), 4)
-    if "info" in kwargs:
-        info = kwargs["info"]
-        if "harvest_quality" in info:
-            msg["harvestQuality"] = round(float(info["harvest_quality"]), 4)
-        if "timing_error" in info:
-            msg["timingError"] = round(float(info["timing_error"]), 2)
-    if "error" in kwargs:
-        msg["error"] = kwargs["error"]
+        # Compare state
+        self.cstates: dict[str, dict] = {}
 
-    return msg
+    # ── Reset ─────────────────────────────────────────────────────────
+    def reset(self, seed: int | None = None) -> dict:
+        seed = seed if seed is not None else random.randint(0, 99999)
+        self.shared_seed = seed
+        return self._reset_compare(seed) if self.compare_mode else self._reset_single(seed)
+
+    def _reset_single(self, seed: int) -> dict:
+        defn = AGENT_DEFS[self.active_agent]
+        self.env = TomatoRipeningEnv(config=_BASE_CONFIG, state_variant=defn["variant"], seed=seed)
+        self.obs, _ = self.env.reset()
+        self.step_count = 0
+        self.episode_history = []
+        self.last_q_values = [0.0, 0.0, 0.0]
+        return self._single_msg("reset")
+
+    def _reset_compare(self, seed: int) -> dict:
+        self.cstates = {}
+        for aid in self.compare_agents:
+            defn = AGENT_DEFS[aid]
+            env = TomatoRipeningEnv(config=_BASE_CONFIG, state_variant=defn["variant"], seed=seed)
+            obs, _ = env.reset()
+            self.cstates[aid] = {
+                "env": env, "obs": obs, "done": False,
+                "step": 0, "total_reward": 0.0,
+                "history": [], "final_info": None,
+            }
+        return self._compare_msg("compare_reset")
+
+    # ── Step ──────────────────────────────────────────────────────────
+    def step(self) -> dict:
+        return self._step_compare() if self.compare_mode else self._step_single()
+
+    def _get_action(self, aid: str, obs: np.ndarray) -> tuple[int, list[float]]:
+        defn = AGENT_DEFS[aid]
+        q_vals = [0.0, 0.0, 0.0]
+
+        if defn["algo"] == "baseline":
+            pol = defn["policy"]
+            if pol == "fixed_day":
+                action = 0
+            elif pol == "fixed_stage5":
+                action = 1 if float(obs[0]) > 0.3 else 0
+            else:  # random
+                action = random.randint(0, 2)
+            return action, q_vals
+
+        model = _models.get(aid)
+        if model is None:
+            return 0, q_vals
+        act, _ = model.predict(obs, deterministic=True)
+        action = int(act)
+        if defn["algo"] == "dqn":
+            with torch.no_grad():
+                t = torch.tensor(obs, dtype=torch.float32).unsqueeze(0)
+                q_vals = [float(v) for v in model.q_net(t).squeeze().tolist()]
+        return action, q_vals
+
+    def _step_single(self) -> dict:
+        if self.env is None:
+            return {"event": "error", "error": "No environment"}
+
+        if self.active_agent == "manual":
+            action, q_vals = self.manual_action, [0.0, 0.0, 0.0]
+        else:
+            action, q_vals = self._get_action(self.active_agent, self.obs)
+        self.last_q_values = q_vals
+
+        obs_new, reward, terminated, truncated, info = self.env.step(action)
+        self.obs = obs_new
+        self.step_count += 1
+        sim = self.env.simulator
+        self.episode_history.append({
+            "hours": sim.hours_elapsed,
+            "ripeness": float(sim.ripeness),
+            "temperature": float(sim.temperature),
+            "humidity": float(sim.humidity),
+            "action": action,
+            "reward": float(reward),
+        })
+        if terminated or truncated:
+            self.running = False
+            return self._single_msg("done", action=action, reward=reward, info=info)
+        return self._single_msg("step", action=action, reward=reward, info=info)
+
+    def _step_compare(self) -> dict:
+        all_done = True
+        for aid, cs in self.cstates.items():
+            if cs["done"]:
+                continue
+            all_done = False
+            action, _ = self._get_action(aid, cs["obs"])
+            obs_new, reward, terminated, truncated, info = cs["env"].step(action)
+            cs["obs"] = obs_new
+            cs["step"] += 1
+            cs["total_reward"] += float(reward)
+            sim = cs["env"].simulator
+            cs["history"].append({
+                "hours": sim.hours_elapsed,
+                "ripeness": float(sim.ripeness),
+                "temperature": float(sim.temperature),
+                "action": action,
+                "reward": float(reward),
+            })
+            if terminated or truncated:
+                cs["done"] = True
+                cs["final_info"] = info
+
+        if all_done:
+            self.running = False
+            return self._compare_msg("compare_done")
+        return self._compare_msg("compare_step")
+
+    # ── Message builders ──────────────────────────────────────────────
+    def _single_msg(self, event: str, **kw) -> dict:
+        if self.env is None:
+            return {"event": event, "error": "no env"}
+        sim = self.env.simulator
+        defn = AGENT_DEFS.get(self.active_agent, {})
+        hist = self.episode_history
+
+        msg: dict = {
+            "event": event, "mode": "single",
+            "agentId": self.active_agent,
+            "agentLabel": defn.get("label", self.active_agent),
+            "agentColor": defn.get("color", "#888"),
+            "step": self.step_count,
+            "hours": round(float(sim.hours_elapsed), 2),
+            "days": round(float(sim.hours_elapsed) / 24.0, 2),
+            "targetDay": round(float(self.env.target_day), 1),
+            "ripeness": round(float(sim.ripeness), 4),
+            "ripenessStage": int(min(5, int((1.0 - float(sim.ripeness)) * 6))),
+            "temperature": round(float(sim.temperature), 2),
+            "humidity": round(float(sim.humidity), 2),
+            "hourOfDay": round(sim.hours_elapsed % 24.0, 1),
+            "quality": round(float(sim.compute_quality_score()), 4),
+            "isOverripe": bool(float(sim.ripeness) < 0.05),
+            "speed": self.speed,
+            "totalReward": round(float(sum(h["reward"] for h in hist)), 2),
+            "history": {
+                "hours": [h["hours"] for h in hist[-200:]],
+                "ripeness": [h["ripeness"] for h in hist[-200:]],
+                "temperature": [h["temperature"] for h in hist[-200:]],
+                "humidity": [h["humidity"] for h in hist[-200:]],
+                "actions": [h["action"] for h in hist[-200:]],
+                "rewards": [h["reward"] for h in hist[-200:]],
+            },
+            "observation": [float(v) for v in self.obs] if self.obs is not None else [],
+            "qValues": self.last_q_values,
+        }
+        if "action" in kw:
+            msg["action"] = ACTION_NAMES[int(kw["action"])]
+            msg["actionId"] = int(kw["action"])
+        if "reward" in kw:
+            msg["reward"] = round(float(kw["reward"]), 4)
+        if "info" in kw:
+            info = kw["info"]
+            if "harvest_quality" in info:
+                msg["harvestQuality"] = round(float(info["harvest_quality"]), 4)
+            if "timing_error" in info:
+                msg["timingError"] = round(float(info["timing_error"]), 2)
+        return msg
+
+    def _compare_msg(self, event: str) -> dict:
+        agents_out: dict[str, dict] = {}
+        target_day = None
+
+        for aid, cs in self.cstates.items():
+            defn = AGENT_DEFS[aid]
+            sim = cs["env"].simulator
+            if target_day is None:
+                target_day = round(float(cs["env"].target_day), 1)
+            hist = cs["history"][-200:]
+            last_action = int(hist[-1]["action"]) if hist else 0
+            entry: dict = {
+                "label": defn["label"],
+                "color": defn["color"],
+                "step": cs["step"],
+                "days": round(sim.hours_elapsed / 24.0, 2),
+                "ripeness": round(float(sim.ripeness), 4),
+                "temperature": round(float(sim.temperature), 2),
+                "action": last_action,
+                "totalReward": round(cs["total_reward"], 2),
+                "done": cs["done"],
+                "history": {
+                    "hours": [h["hours"] for h in hist],
+                    "ripeness": [h["ripeness"] for h in hist],
+                    "temperature": [h["temperature"] for h in hist],
+                    "actions": [h["action"] for h in hist],
+                },
+            }
+            if cs["done"] and cs["final_info"]:
+                fi = cs["final_info"]
+                entry["harvestQuality"] = round(float(fi.get("harvest_quality", 0)), 4)
+                entry["timingError"] = round(float(fi.get("timing_error", 0)), 2)
+                entry["harvestDay"] = round(sim.hours_elapsed / 24.0, 2)
+            agents_out[aid] = entry
+
+        return {
+            "event": event, "mode": "compare",
+            "targetDay": target_day,
+            "seed": self.shared_seed,
+            "agents": agents_out,
+            "speed": self.speed,
+        }
+
+    # ── Catalogue helper (sent to frontend on connect) ─────────────────
+    @staticmethod
+    def catalogue_msg() -> dict:
+        return {
+            "event": "catalogue",
+            "agents": {
+                aid: {
+                    "label": d["label"],
+                    "color": d["color"],
+                    "variant": d["variant"],
+                    "available": d["algo"] == "baseline" or aid in _models,
+                }
+                for aid, d in AGENT_DEFS.items()
+            },
+        }
 
 
-# ── WebSocket handler ────────────────────────────────────────────────
+# ── WebSocket handler ─────────────────────────────────────────────────
 async def handler(websocket):
-    """Handle a WebSocket connection from the frontend."""
-    global running, speed, mode, manual_action
+    print(f"  Client connected: {websocket.remote_address}")
+    session = SimSession()
 
-    print(f"🌐 Client connected: {websocket.remote_address}")
-
-    # Send initial state
-    state = reset_env()
+    # Send catalogue + initial state
+    await websocket.send(json.dumps(SimSession.catalogue_msg()))
+    state = session.reset()
     await websocket.send(json.dumps(state))
 
-    async def sim_loop():
-        """Run simulation steps while running=True."""
-        while running:
-            for _ in range(speed):
-                state = do_step()
-                if state.get("event") in ("done", "error"):
-                    await websocket.send(json.dumps(state))
-                    return
-            await websocket.send(json.dumps(state))
-            await asyncio.sleep(0.05)  # ~20 FPS update rate
+    sim_task: asyncio.Task | None = None
 
-    sim_task = None
+    async def sim_loop():
+        while session.running:
+            for _ in range(session.speed):
+                s = session.step()
+                ev = s.get("event", "")
+                if ev in ("done", "compare_done", "error"):
+                    await websocket.send(json.dumps(s))
+                    return
+            await websocket.send(json.dumps(s))
+            await asyncio.sleep(0.05)
 
     try:
         async for raw in websocket:
@@ -207,57 +368,73 @@ async def handler(websocket):
             cmd = msg.get("cmd")
 
             if cmd == "start":
-                if not running:
-                    running = True
+                if not session.running:
+                    session.running = True
                     sim_task = asyncio.create_task(sim_loop())
 
             elif cmd == "pause":
-                running = False
+                session.running = False
                 if sim_task:
                     await sim_task
                     sim_task = None
 
             elif cmd == "reset":
-                running = False
+                session.running = False
                 if sim_task:
                     await sim_task
                     sim_task = None
-                state = reset_env()
+                seed = msg.get("seed")  # optional pinned seed
+                state = session.reset(seed)
                 await websocket.send(json.dumps(state))
 
             elif cmd == "step":
-                # Single step
-                if not running:
-                    state = do_step()
-                    await websocket.send(json.dumps(state))
-
-            elif cmd == "set_mode":
-                mode = msg.get("mode", "rl")
-                print(f"  Mode changed to: {mode}")
+                if not session.running:
+                    s = session.step()
+                    await websocket.send(json.dumps(s))
 
             elif cmd == "set_speed":
-                speed = max(1, min(20, msg.get("speed", 1)))
+                session.speed = max(1, min(20, int(msg.get("speed", 3))))
 
             elif cmd == "set_action":
-                manual_action = msg.get("action", 0)
+                session.manual_action = int(msg.get("action", 0))
+
+            elif cmd == "set_single":
+                # Switch to single-agent mode with given agent
+                session.running = False
+                if sim_task:
+                    sim_task.cancel()
+                    sim_task = None
+                session.compare_mode = False
+                session.active_agent = msg.get("agent", "dqn")
+                state = session.reset()
+                await websocket.send(json.dumps(state))
+
+            elif cmd == "set_compare":
+                # Switch to compare mode with given agent list
+                session.running = False
+                if sim_task:
+                    sim_task.cancel()
+                    sim_task = None
+                session.compare_mode = True
+                session.compare_agents = msg.get("agents", ["dqn", "ppo", "a2c"])
+                state = session.reset()
+                await websocket.send(json.dumps(state))
 
     except websockets.exceptions.ConnectionClosed:
         pass
     finally:
-        running = False
+        session.running = False
         if sim_task:
             sim_task.cancel()
-        print(f"🔌 Client disconnected")
+        print(f"  Client disconnected")
 
 
 async def main():
     port = 8765
-    print(f"\n🚀 Digital Twin WebSocket server starting on ws://localhost:{port}")
-    print(f"   Model: {MODEL_PATH.name}")
-    print(f"   Open the frontend at http://localhost:8080\n")
-
+    print(f"\n  Digital Twin WebSocket server on ws://localhost:{port}")
+    print(f"  Open: digital_twin_viz/index.html\n")
     async with websockets.serve(handler, "0.0.0.0", port):
-        await asyncio.Future()  # run forever
+        await asyncio.Future()
 
 
 if __name__ == "__main__":

@@ -75,8 +75,9 @@ def evaluate_baseline(
     timing_errors = []
     harvest_qualities = []
 
+    state_variant = config.get("rl", {}).get("environment", {}).get("state_variant", "B")
     for i in range(n_episodes):
-        env = TomatoRipeningEnv(config=config, seed=seed + i)
+        env = TomatoRipeningEnv(config=config, seed=seed + i, state_variant=state_variant)
         obs, info = env.reset()
         total_reward = 0.0
         done = False
@@ -130,8 +131,9 @@ def evaluate_trained_policy(
     harvest_qualities = []
     action_counts = {0: 0, 1: 0, 2: 0}
 
+    state_variant = config.get("rl", {}).get("environment", {}).get("state_variant", "B")
     for i in range(n_episodes):
-        env = TomatoRipeningEnv(config=config, seed=seed + i)
+        env = TomatoRipeningEnv(config=config, seed=seed + i, state_variant=state_variant)
         obs, info = env.reset()
         total_reward = 0.0
         done = False
@@ -283,15 +285,17 @@ def main() -> None:
     if args.smoke_test:
         n_envs = 1
 
+    state_variant = rl_cfg.get("environment", {}).get("state_variant", "B")
+
     def make_env(rank: int):
         def _init():
-            return TomatoRipeningEnv(config=config, seed=seed + rank)
+            return TomatoRipeningEnv(config=config, seed=seed + rank, state_variant=state_variant)
         return _init
 
     vec_env = DummyVecEnv([make_env(i) for i in range(n_envs)])
 
     # Eval environment
-    eval_env = TomatoRipeningEnv(config=config, seed=seed + 1000)
+    eval_env = TomatoRipeningEnv(config=config, seed=seed + 1000, state_variant=state_variant)
 
     # Create DQN model
     print("\n--- Creating DQN Model ---")

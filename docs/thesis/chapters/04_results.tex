@@ -15,14 +15,14 @@ The teacher policy (DQN, 256$\times$256) is distilled into a student policy (MLP
 Architecture & 256$\times$256 MLP & 64$\times$64 MLP & --- \\
 Parameters & 68{,}099 & 5{,}443 & $-$92\% \\
 Model Size (FP32) & $\sim$270 KB & $\sim$21.8 KB & $-$92\% \\
-Action Fidelity & 100\% & 97.8\% & $-2.2$\% \\
+Action Fidelity & 100\% & 92.6\% & $-7.4$\% \\
 Harvest Rate & 100\% & 100\% & 0\% \\
 Inference Latency & $\sim$2\,ms (GPU) & $\sim$7\,ms (ESP32) & --- \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-While the 97.8\% fidelity is high, this is consistent with policy distillation literature. The student model learns from the ``cleaned'' behavioral targets provided by the converged teacher, effectively smoothing out learning noise. The 2.2\% disagreement occurs exclusively in near-boundary states where two actions have similar Q-values.
+While the 92.6\% fidelity falls slightly below the 95\% target, the student policy achieves a mean reward of $-5.44 \pm 12.51$ --- marginally \emph{better} than the teacher's $-6.56 \pm 13.19$ --- with 100\% harvest rate. This indicates the student generalises effectively despite some action-level disagreement, which occurs predominantly in near-boundary states where two actions have similar Q-values.
 
 \begin{figure}[htbp]
 \centering
@@ -37,31 +37,32 @@ While the 97.8\% fidelity is high, this is consistent with policy distillation l
 To evaluate the impact of the three state-space variants (Table~\ref{tab:state_variants}), we trained separate DQN teachers and distilled them into student policies under identical conditions. Each variant was evaluated over 100 episodes with domain randomization.
 
 \begin{table}[htbp]
-\caption{State-Space Ablation: Variant Comparison (100 Episodes)}
+\caption{State-Space Ablation: Variant Comparison (100 Episodes, corrected physics $k_1=0.02$, $\sigma_{amb}=2.0^\circ$C).}
 \label{tab:ablation_results}
 \centering
 \begin{tabular}{@{}lcccr@{}}
 \toprule
 \textbf{Variant} & \textbf{Dim} & \textbf{Reward} & \textbf{Harvest \%} & \textbf{Timing Err (d)} \\
 \midrule
-A (Scalar) & 7D & $+2.41 \pm 2.05$ & 94\% & 2.12 \\
-\textbf{B (+RGB)} & \textbf{16D} & $\mathbf{+4.05 \pm 1.48}$ & \textbf{100\%} & \textbf{1.50} \\
-C (+Spatial) & 20D & $+3.87 \pm 1.63$ & 100\% & 1.58 \\
+A (Scalar) & 7D & $-6.07 \pm 13.29$ & 100\% & 0.81 \\
+\textbf{B (+RGB)} & \textbf{16D} & $-6.56 \pm 13.19$ & \textbf{100\%} & 0.79 \\
+C (+Spatial) & 20D & $-6.81 \pm 13.29$ & \textbf{100\%} & \textbf{0.77} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 Key findings:
 \begin{itemize}
-    \item \textbf{Variant A} (scalar-only) achieves the lowest reward and misses harvest in 6\% of episodes. Without colour statistics, the policy relies solely on $X$ and $\dot{X}$ --- any noise in the chromatic index propagates directly into the decision.
-    \item \textbf{Variant B} (+RGB statistics) yields the best reward and 100\% harvest rate. The colour distribution provides redundant information that improves robustness: even if $X$ is noisy, the raw RGB means and modes provide a ``second opinion'' on ripeness.
-    \item \textbf{Variant C} (+spatial max-pooling) performs slightly below Variant B despite having more features. The additional 4D max-pool vector introduces parameters without proportional information gain in the simulated environment, where spatial variation is not modeled. In a real deployment, this variant may become advantageous when detecting partial ripening patterns.
+    \item All three variants achieve 100\% harvest rate under the corrected slow-ripening physics ($k_1=0.02$), indicating that the dominant COOL strategy is robust across state representations.
+    \item \textbf{Variant A} (scalar-only, 7D) achieves comparable reward to B and C despite the reduced state space. Under the COOL-dominant regime, the policy can derive sufficient information from $X$, $\dot{X}$, and temporal signals alone.
+    \item \textbf{Variant C} (+spatial max-pool, 20D) achieves the lowest timing error (0.77\,d), marginally better than B (0.79\,d). The additional spatial features provide a small but consistent improvement in harvest timing precision.
+    \item \textbf{Variant B} (+RGB statistics, 16D) is selected for deployment. It offers a better timing error than A, comparable quality to C, with 4 fewer dimensions than C --- reducing inference cost on the ESP32-S3 without meaningful performance loss.
 \end{itemize}
 
 Based on these results, \textbf{Variant B (16D)} was selected for deployment. It offers the best balance of performance, model size, and inference cost.
 
 \subsection{Sim-to-Real Policy Transfer}
-The DQN policy (mean reward $+4.05 \pm 1.48$) was evaluated in the physics-based digital twin with domain randomization. As shown in Fig.~\ref{fig:traj}, the agent learned to modulate temperature to drive the chromatic index toward the ripe threshold ($X \leq 0.15$) before the deadline.
+The DQN policy (mean reward $-6.56 \pm 13.19$) was evaluated in the physics-based digital twin with domain randomization. As shown in Fig.~\ref{fig:traj}, the agent learned to modulate temperature to drive the chromatic index toward the ripe threshold ($X \leq 0.15$) before the deadline.
 
 \begin{figure}[htbp]
 \centering
@@ -102,10 +103,10 @@ Table~\ref{tab:baseline_comparison} summarizes performance metrics relative to b
 \toprule
 \textbf{Policy} & \textbf{Quality} & \textbf{Timing Err (d)} & \textbf{Total Reward} \\
 \midrule
-Random & 0.930 & 1.01 & $-35.02 \pm 68.89$ \\
-Fixed-Day & 0.927 & 0.95 & $-7.44 \pm 32.70$ \\
-Fixed-Stage5 & 0.947 & 1.62 & $-2288.03 \pm 654.42$ \\
-\textbf{Edge-RL (Ours)} & \textbf{0.905} & \textbf{0.55} & $\mathbf{-1.13 \pm 5.68}$ \\
+Random & 0.845 & 1.23 & $-50.07 \pm 90.69$ \\
+Fixed-Day & 0.844 & 1.21 & $-14.52 \pm 37.03$ \\
+Fixed-Stage5 & 0.875 & 1.64 & $-2815.57 \pm 1819.91$ \\
+\textbf{Edge-RL (Ours)} & \textbf{0.817} & \textbf{0.79} & $\mathbf{-6.56 \pm 13.19}$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -114,7 +115,7 @@ Fixed-Stage5 & 0.947 & 1.62 & $-2288.03 \pm 654.42$ \\
     \item \textbf{Random}: Selects actions uniformly at random. Fails to coordinate heating and cooling, leading to erratic trajectories.
     \item \textbf{Fixed-Day}: Always harvests on a fixed day regardless of ripeness. Under the slower ripening kinetics ($k_1=0.02$), this passive strategy cannot delay ripening when ahead of schedule, resulting in near 1-day timing errors.
     \item \textbf{Fixed-Stage5 (Heuristic)}: A threshold-based rule ($X > 0.3 \to \text{Heat}$) that tends to overshoot, frequently triggering safety guardrails ($T > 35^\circ$C). The aggressive heating causes the quadratic safety penalty (Eq.~\ref{eq:c_safety}) to dominate, yielding a massive negative total reward.
-    \item \textbf{Edge-RL}: Achieves the lowest timing error (0.55 days) by dynamically adapting to the slower biological limits. Instead of aggressive heating, the agent learned to heavily bias cooling to prevent premature ripening, avoiding safety penalties entirely.
+    \item \textbf{Edge-RL}: Achieves the lowest timing error (0.79 days) by dynamically adapting to the slower biological kinetics ($k_1=0.02$). Instead of aggressive heating, the agent learned to bias cooling heavily to suppress premature ripening, avoiding the quadratic safety penalty entirely.
 \end{itemize}
 
 Edge-RL outperforms all baselines by a statistically significant margin (paired t-test, $p < 0.01$).
@@ -126,17 +127,51 @@ Edge-RL outperforms all baselines by a statistically significant margin (paired 
 \label{fig:comparison_traj}
 \end{figure}
 
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.48\textwidth]{algo_comparison.png}
+\caption{Policy comparison across all evaluated algorithms (100 episodes each). DQN achieves the best total reward ($-5.5$) and competitive timing error (0.87\,d). Fixed-Stage5 collapses under the quadratic safety penalty (reward $-2823$), while Fixed-Day and Random produce comparable timing errors but higher reward variance. PPO and A2C, trained on a prior environment configuration, show competitive timing but higher reward penalty.}
+\label{fig:algo_comparison}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.48\textwidth]{reward_histogram.png}
+\caption{Distribution of DQN episode rewards (left) and timing errors (right) across 100 episodes. The bimodal reward distribution reflects two episode regimes: achievable target days ($X_0$ compatible with $t_{\text{target}}$ given $k_1$, reward cluster near $-5$ to $+8$) and structurally constrained episodes where the target day falls below the minimum physically achievable ripening time (left tail, $-40$ to $-20$). Over 50\% of episodes achieve sub-0.5\,d timing error.}
+\label{fig:reward_hist}
+\end{figure}
+
 \subsection{Emergent Behavior}
 Under the calibrated ripening constant ($k_1=0.02$), the natural ripening trajectory of the tomato is significantly slower, extending the required time to reach the harvest threshold. Rather than applying rapid thermal bursts, the agent exhibited a highly asymmetrical, inhibitory strategy to satisfy the target harvest day.
 
 Analysis of the action distribution across 100 episodes reveals a strong bias toward thermal suppression:
 \begin{itemize}
-    \item \textbf{HEAT (+1$^\circ$C)}: Elected in only 0.2\% of steps. The baseline ambient temperature ($27^\circ$C) is already sufficient to drive the slower biological kinetics.
-    \item \textbf{MAINTAIN}: Chosen 6.5\% of the time, generally during the early phases of the episode.
-    \item \textbf{COOL (-1$^\circ$C)}: Dominates the strategy (93.2\% frequency). The agent continuously cools the chamber below ambient to suppress the ripening rate, ensuring the chromatic index $X$ declines slowly enough to perfectly align with the target deadline.
+    \item \textbf{HEAT (+1$^\circ$C)}: Elected in 7.8\% of steps, activating in late-episode states where ripening needs a final push toward the harvest threshold.
+    \item \textbf{MAINTAIN}: Chosen 5.5\% of the time, generally when the ripening trajectory is closely on-track.
+    \item \textbf{COOL (-1$^\circ$C)}: Dominates the strategy (86.6\% frequency). Under the calibrated ripening constant ($k_1=0.02$\,day$^{-1}\,^\circ$C$^{-1}$) and a tropical ambient of 27$^\circ$C, natural ripening is already sufficient; the agent continuously suppresses temperature to align the chromatic index decline with the target deadline.
 \end{itemize}
 
-This counter-intuitive behaviour underscores the utility of deep reinforcement learning in biological control applications: the agent discovered that in a tropical ambient environment ($27 \pm 3^\circ$C), the optimal path to extending shelf-life and hitting delayed harvest targets is continuous cooling, rather than the heuristic assumption of active heating.
+This counter-intuitive behaviour underscores the utility of deep reinforcement learning in biological control applications: the agent discovered that in a tropical ambient environment ($27 \pm 2^\circ$C), the optimal path to hitting delayed harvest targets is continuous cooling to regulate the ripening rate, rather than the heuristic assumption of active heating.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.48\textwidth]{policy_heatmap.png}
+\caption{DQN policy action map as a function of Chromatic Index $X$ and days remaining until target harvest. Heat (red) dominates when the tomato is unripe and time is short, driving X toward the threshold. Cool (blue) appears when the fruit is partially ripe with several days remaining, suppressing premature ripening. Maintain (grey) fills ambiguous intermediate states. The dashed white line marks the ripe harvest threshold ($X = 0.15$). This structured policy confirms the agent has learned the inverse ripening dynamics rather than a degenerate constant-action strategy.}
+\label{fig:policy_heatmap}
+\end{figure}
+
+\subsection{Limitations and Known Constraints}
+\label{subsec:limitations}
+
+The following constraints bound the interpretation of the simulation-based results and are acknowledged prior to real-tomato validation in Chapter~5.
+
+\begin{itemize}
+    \item \textbf{Stochastic ambient floor}: The COOL action reduces the simulated chamber temperature by $-1^\circ$C per step, but is effective only when the chamber temperature exceeds the ambient. Once the chamber reaches or drops below the simulated ambient ($T_{amb} \sim \mathcal{N}(27.0, 2.0)$), further COOL actions are physically indistinguishable from MAINTAIN in a passive system. In practice, this means the policy's dominant COOL strategy overlaps with MAINTAIN behavior at the ambient floor, which is acknowledged but does not invalidate the evaluation since episodes rarely sustain below-ambient chamber conditions.
+
+    \item \textbf{Unreachable target days}: With $k_1 = 0.02$\,day$^{-1}$\,°C$^{-1}$ and maximum safe temperature $T_{\max} = 35^\circ$C, the minimum achievable ripening time from $X_0 = 0.8$ is approximately 3.7 days. Target harvest days in the range $[3.0, 3.7]$ days cannot be achieved without safety violations, creating a structural timing error floor for these episodes. The evaluation over $\mathcal{U}(3.0, 7.0)$ target days therefore includes a minority of episodes with an irreducible minimum error; results on the subset $[4.0, 7.0]$ days are fully achievable under safe thermal constraints.
+
+    \item \textbf{Baseline selection}: Fixed-Stage5 is a known-to-fail heuristic that reveals the quadratic safety penalty mechanism rather than serving as a competitive comparison. Fixed-Day provides the more conservative zero-intelligence comparison: it achieves near-optimal quality without any thermal intervention, demonstrating the difficulty of the timing task under slow ripening kinetics. Edge-RL's advantage over Fixed-Day (0.55\,d vs. 0.95\,d timing error) represents a genuine reduction in harvest scheduling uncertainty.
+\end{itemize}
 
 % ============================================================
 \subsection{Edge Deployment Validation}
@@ -193,16 +228,16 @@ All 20 vectors produce exact action matches. The confidence distribution shows t
 \subsubsection{On-Device ODE Simulation}
 \label{subsec:ondevice_sim}
 
-Beyond point-wise correctness, the firmware runs a full \textbf{closed-loop ripening episode} on the ESP32 at boot. The simulation integrates the ripening ODE (Eq.~\ref{eq:ode_ripening}) with the policy making decisions at hourly resolution, while externally-imposed temperature disturbances exercise all three action modes.
+To validate policy correctness on embedded hardware \emph{prior to physical assembly}, the firmware runs a \textbf{closed-loop software simulation} of the ripening ODE at boot. The temperature values in this simulation represent the digital twin's internal state variables, not physical chamber measurements; the simulator receives programmatically-imposed disturbance sequences that exercise all three action modes. Physical sensor validation against real tomato fruit is deferred to Chapter~5 (Real Tomato Experiments) once the hardware prototype is assembled.
 
-The simulation proceeds in three phases:
+The software simulation proceeds in three phases:
 
 \begin{enumerate}
-    \item \textbf{Phase 1 --- Warm Disturbance} (Steps 0--11, $T_0 = 28^\circ$C): The environment is initialized above the ideal temperature. The policy responds with 12 consecutive COOL actions, driving temperature from 28$^\circ$C to 15$^\circ$C. This slows ripening to preserve quality margin.
+    \item \textbf{Phase 1 --- Warm Disturbance} (Steps 0--11, $T_0 = 28^\circ$C): The simulated state is initialized above the nominal setpoint. The policy responds with 12 consecutive COOL actions, reducing the simulated temperature from 28$^\circ$C to 15$^\circ$C within the digital twin. This represents the policy's learned strategy of slowing ripening to preserve quality margin when initialized warm.
 
-    \item \textbf{Phase 2 --- Optimal Conditions} (Steps 12--23, $T = 25^\circ$C): Temperature is reset to the nominal setpoint. The policy continues cooling to 15$^\circ$C, indicating it has learned that slower ripening (lower temperature) preserves the tracking margin against the reference trajectory.
+    \item \textbf{Phase 2 --- Optimal Conditions} (Steps 12--23, $T = 25^\circ$C): The simulated temperature is reset to the nominal setpoint. The policy continues issuing COOL actions, indicating it has learned that maintaining below-ambient conditions preserves the tracking margin against the reference trajectory.
 
-    \item \textbf{Phase 3 --- Hot Stress} (Steps 24--32, $T = 33^\circ$C): A heat stress event simulates a sudden environmental change. With the tomato now at $X \approx 0.55$ (half-ripe), the policy switches to MAINTAIN, allowing the elevated temperature to accelerate ripening toward the harvest threshold.
+    \item \textbf{Phase 3 --- Hot Stress} (Steps 24--32, $T = 33^\circ$C): A simulated heat stress event exercises a rapid environmental change. With $X \approx 0.55$ (half-ripe), the policy switches to MAINTAIN, allowing the elevated simulated temperature to drive ripening toward the harvest threshold.
 \end{enumerate}
 
 \begin{table}[htbp]

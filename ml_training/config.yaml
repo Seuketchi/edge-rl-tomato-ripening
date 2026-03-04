@@ -56,12 +56,13 @@ rl:
 
   # Simulator physics (ROYG convention: X=1 Green, X=0 Red)
   simulator:
-    k1: 0.08                      # Ripening rate constant
+    k1: 0.02                      # Ripening rate constant (day⁻¹ °C⁻¹), calibrated from Ogundiwin et al. (2022)
     t_base: 12.5                  # Base temperature (°C)
     x_min: 0.0                    # Minimum chromatic index (fully ripe)
     temp_noise_std: 0.5           # Temperature sensor noise
     humidity_noise_std: 2.0       # Humidity sensor noise
     delta_t_step: 1.0             # Incremental temp change per action (°C)
+    k1_variation: 0.008           # Per-episode k1 randomization range → k1 ∈ [0.012, 0.028] (±40%)
     ambient_temp_mean: 27.0       # Mean ambient temperature (°C) — Philippines climate
     ambient_temp_std: 2.0         # Ambient variation (diurnal + stochastic)
 

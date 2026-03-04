@@ -100,18 +100,17 @@ thesis-it/
 
 ## Current Project Stage
 
-**Stage 5 — Hardware Assembly** (as of March 2026). Stages 1–4 (writing fixes, chapter rewrites, RL methodology gaps, missing figures) are COMPLETE. All simulation/ML code is done, thesis Chapters 1–5 are written, firmware code compiles. Next: assemble physical prototype, then Stage 6 (real tomato experiments with 5–10 fruits).
+**Stage 5 — Model Finalization + Hardware Assembly** (as of March 2026). Stages 1–4 complete. Config regression fixed (k1_variation=0.008, ambient_temp_std=2.0). DQN retrain in progress (outputs/rl_20260303_*/). After retrain: distill → export C headers → recompile firmware → assemble prototype → Stage 6 (real tomato experiments).
 
 ## "Fix this" Shorthand
 
 When the user says **"fix this"**, work through this prioritized list:
 
-1. **Firmware state vector bug** — `edge_firmware/main/policy_task.c` lines 127–137 hardcode RGB stats (slots 3–11) to `0.0f` instead of reading from `g_state`. The vision task in `vision_task.c` computes these and stores them in `shared_state.h`, but `policy_task.c` never reads them. This means the 16D Variant B policy runs with 9 zeroed features on the actual device.
-2. **Dashboard 4→3 action mismatch** — `digital_twin_viz/index.html` still shows a 4th "Harvest 🔪" Q-value bar and labels vision as "MobileNetV2 (0.35×)". Should be 3 actions and "Direct Pixel Statistics".
-3. **Dead MobileNetV2 config** — `ml_training/config.yaml` lines 12–60 have a full `vision:` section for MobileNetV2 training that was abandoned. Remove or comment out.
-4. **Energy metric reporting** — Add energy cost model to evaluation (HEAT=1 unit, MAINTAIN=0.1, COOL=0.3) and report total energy per episode. No device changes needed.
-5. **Confidence-based action gating** — In firmware, if max softmax confidence < 0.6, default to MAINTAIN. ~10 lines of C in `policy_task.c`.
-6. **k₁ online adaptation** — Exponential moving average of observed dX/dt on ESP32 to adapt the ripening rate constant. Addresses RQ3 sim-to-real transfer. Only if time permits.
+1. **Dashboard 4→3 action mismatch** — `digital_twin_viz/index.html` still shows a 4th "Harvest 🔪" Q-value bar and labels vision as "MobileNetV2 (0.35×)". Should be 3 actions and "Direct Pixel Statistics".
+2. **After retrain: update thesis numbers** — Tables 2+3 in `docs/thesis/chapters/04_results.tex` and action distribution text (0.2%/6.5%/93.2%) — update to new eval JSON. Sync `thesis_report.tex` and `methodology_and_results.tex` which currently have stale 31.4%/43.5%/25.1%.
+3. **After retrain: distill → export → recompile** — `python -m ml_training.rl.distill ... && python ml_training/rl/export_policy_c.py --verify && cd edge_firmware && idf.py build`
+4. **Confidence-based action gating** — In firmware, if max softmax confidence < 0.6, default to MAINTAIN. ~10 lines of C in `policy_task.c`.
+5. **k₁ online adaptation** — Exponential moving average of observed dX/dt on ESP32 to adapt the ripening rate constant. Addresses RQ3 sim-to-real transfer. Only if time permits.
 
 ## How to Run Things
 
@@ -142,19 +141,21 @@ python ml_training/rl/export_policy_c.py --student outputs/.../student_policy.pt
 python ml_training/rl/export_policy_c.py --int8    # INT8 quantized
 python ml_training/rl/export_policy_c.py --verify  # verify golden vectors
 
-# Run simulation visualization
-python -m ml_training.rl.run_simulation --model outputs/rl_20260217_095300/final_model.zip
+# Run simulation (unified runner — replaces run_simulation, run_evaluation, verify_env)
+python -m ml_training.rl.run_sim --mode verify                                          # env sanity check
+python -m ml_training.rl.run_sim --mode demo --model outputs/rl_<timestamp>/best_model/best_model.zip
+python -m ml_training.rl.run_sim --mode eval --episodes 100 --model outputs/rl_<timestamp>/best_model/best_model.zip
 
 # Generate thesis figures
-python generate_thesis_figures.py --model-dir outputs/rl_20260217_095300
+python generate_thesis_figures.py --model-dir outputs/rl_<timestamp>
 python generate_thesis_figures.py --figures episode envelope tracking comparison distillation training
 ```
 
 ### Visualization & Demos
 ```bash
 python digital_twin_viz/server.py   # WebSocket dashboard → open http://localhost:8765
-python run_sim_demo.py              # Quick sim demo (hardcoded model path)
-python run_box2d_viz.py             # Box2D + pygame visualization
+# run_sim_demo.py and run_box2d_viz.py deleted; use run_sim instead:
+python -m ml_training.rl.run_sim --mode demo   # auto-discovers latest model
 ```
 
 ### Tests
@@ -202,10 +203,10 @@ Includes `00_title_page` through `12_curriculum_vitae`. University submission fo
 
 ## Known Issues / Tech Debt
 
-1. **`policy_task.c` RGB slots zeroed** — See "Fix this" item #1. Critical for RQ1 validity.
-2. **Dashboard shows legacy 4-action space & MobileNetV2 label** — See "Fix this" item #2.
-3. **`config.yaml` has dead `vision:` section** — Lines 12–60 reference MobileNetV2 training that was replaced by direct pixel extraction.
-4. **`ml_training/vision/` directory is legacy** — Not used in deployment. Direct pixel extraction replaced CNN entirely.
-5. **`export_onnx.py` is dead code** — The system uses direct C header export (`export_policy_c.py`), not ONNX.
-6. **Distillation reward gap** — Student achieves 97.8% *action fidelity* vs teacher, but reward drops from teacher's 4.05 to student's −22.96. Thesis correctly frames this as action agreement, not reward equivalence.
-7. **Best trained model path** — `outputs/rl_20260217_095300/` (teacher that produced the 97.8% student). Use `best_model/best_model.zip` or `final_model.zip`.
+1. **Dashboard shows legacy 4-action space & MobileNetV2 label** — `digital_twin_viz/index.html` needs 3 actions and "Direct Pixel Statistics" label.
+2. **`ml_training/vision/` directory is legacy** — Not used in deployment. Direct pixel extraction replaced CNN entirely.
+3. **`export_onnx.py` is dead code** — The system uses direct C header export (`export_policy_c.py`), not ONNX.
+4. **Distillation reward gap** — Student achieves 97.8% *action fidelity* vs teacher, but reward drops from teacher's 4.05 to student's −22.96. Thesis correctly frames this as action agreement, not reward equivalence. New retrain will produce canonical numbers.
+5. **Best trained model path** — `outputs/rl_20260303_174001/` (Variant B, canonical). Use `best_model/best_model.zip`.
+6. **Ablation Variants A/C** — `outputs/rl_2026030320*/` (A and C retrains, post state_variant bug fix). Table 2 in `04_results.tex` needs updating once these complete.
+7. **state_variant config bug (fixed 2026-03-03)** — `TomatoRipeningEnv` takes `state_variant` as a keyword arg, NOT from config dict. `train_dqn.py` now explicitly reads it from `config["rl"]["environment"]["state_variant"]` and passes it through.

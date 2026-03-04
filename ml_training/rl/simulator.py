@@ -34,19 +34,19 @@ import numpy as np
 @dataclass
 class SimulatorConfig:
     """Configuration for the ripening simulator."""
-    k1: float = 0.08                # Ripening rate constant
+    k1: float = 0.02                # Ripening rate constant (day⁻¹ °C⁻¹), calibrated from Ogundiwin et al. (2022)
     t_base: float = 12.5            # Base temperature (°C)
     x_min: float = 0.0              # Minimum chromatic index (fully ripe / Red)
     temp_noise_std: float = 0.5     # Temperature sensor noise (°C)
     humidity_noise_std: float = 2.0  # Humidity sensor noise (%)
     k1_variation: float = 0.02      # Per-episode k1 randomization range
     initial_ripeness_range: tuple[float, float] = (0.6, 1.0)  # Green-ish start
-    initial_temp_range: tuple[float, float] = (25.0, 30.0)  # At/above ambient (Philippines)
+    initial_temp_range: tuple[float, float] = (25.0, 31.0)  # Iligan City daytime range
     initial_humidity_range: tuple[float, float] = (65.0, 85.0)
     delta_t_step: float = 1.0       # Incremental temperature change per action (°C)
-    # Ambient environment (heater-only system: cannot cool below ambient)
+    # Ambient environment
     ambient_temp_mean: float = 27.0  # Mean ambient temperature (°C) — Philippines climate
-    ambient_temp_std: float = 2.0    # Ambient variation std (stochastic noise)
+    ambient_temp_std: float = 2.0    # Ambient variation std (diurnal + stochastic); synced with config.yaml
     # Diurnal (day/night) cycle parameters
     diurnal_amplitude: float = 4.0   # ±°C swing around mean (peak-to-trough = 8°C)
     diurnal_peak_hour: float = 14.0  # Hour of day when ambient is hottest (2 PM)

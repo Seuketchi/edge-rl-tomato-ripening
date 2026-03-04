@@ -146,6 +146,13 @@
 
     \noindent where $k_1 = 0.02$~day$^{-1}$~$^{\circ}$C$^{-1}$ is the cultivar-specific ripening rate constant (Section~\ref{sec:Ripening Kinetics}), and $T_{\text{base}} = 12.5^{\circ}$C is the biological base temperature below which ripening effectively ceases \citep{saltveit2005}. The Continuous Chromatic Index $X$ is derived from the spectral ordering along the visible spectrum: in the Red--Orange--Yellow--Green (ROYG) progression, high $X$ corresponds to the green end and low $X$ to the red end. Unlike the discrete USDA six-point staging system \citep{usda1991}, $X$ preserves the full gradient of colour change, enabling proportional control and fine-grained reward shaping.
 
+    \begin{figure}[ht]
+        \centering
+        \includegraphics[width=0.85\textwidth]{royg_stages.png}
+        \caption{Continuous Chromatic Index scale showing the ROYG progression from fully green ($X = 1.0$, mature green) to fully red ($X = 0.0$, ripe). The harvest threshold at $X = 0.15$ corresponds to the red-ripe stage; the biological base temperature $T_{\text{base}} = 12.5^{\circ}$C marks the lower bound below which ripening effectively ceases.}
+        \label{fig:royg_stages}
+    \end{figure}
+
     \subsection{Thermal Model}
 
     The chamber temperature $T$ serves as the primary control variable. Since the system uses a heater-only configuration with passive cooling (no compressor or Peltier element), the temperature dynamics are modelled as:
@@ -284,6 +291,13 @@
     \end{equation}
 
     \noindent where $B = 10.0$ is the maximum bonus and $t_{\text{max}} = 7$ days. Harvesting exactly on time yields the full bonus; deviation reduces it proportionally.
+
+    \begin{figure}[ht]
+        \centering
+        \includegraphics[width=0.85\textwidth]{reward_decomposition.png}
+        \caption{Decomposition of the composite reward signal as a function of harvest day relative to the 5-day target. The quality component $r_{\text{progress}}$ increases monotonically with ripening progress. The timing penalty scales with deviation from the target, dominating as the deadline passes. The total reward peaks at exactly the target day, incentivising precise harvest scheduling.}
+        \label{fig:reward_decomp}
+    \end{figure}
 
     \subsection{Termination Conditions}
 

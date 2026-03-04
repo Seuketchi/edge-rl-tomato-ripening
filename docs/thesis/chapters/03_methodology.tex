@@ -45,6 +45,13 @@ We model the ripening process using a first-order Ordinary Differential Equation
 
     \noindent In an increasing frequency along the visible spectrum, the range proceeds from Red to Green (ROYG). Thus, $X$ maps directly to this spectral ordering: high $X$ corresponds to the green end and low $X$ to the red end.  X is derived from the mean RGB statistics of the tomato ROI by mapping the ROYG spectral shift to a peak-wavelength intensity ratio.  Unlike the 0--5 USDA staging \cite{usda1991} that discretizes a continuous process, $X$ preserves the full gradient of color change, enabling proportional control and fine-grained reward shaping.
 
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.48\textwidth]{royg_stages.png}
+\caption{Tomato ripening stages mapped to the Chromatic Index $X = G/(R+G)$. The continuous ROYG colour gradient corresponds to six USDA-equivalent stages, from Green ($X \approx 1.0$) to Red ($X \approx 0.0$). The RL policy targets $X \leq 0.15$ (Light Red–Red boundary) as the harvest threshold.}
+\label{fig:royg_stages}
+\end{figure}
+
 \begin{equation}
     \frac{dX}{dt} = -k_1 (T - T_{base}) X
     \label{eq:ode_ripening}
@@ -76,7 +83,7 @@ To ensure the RL policy generalizes beyond the nominal simulator parameters, the
 \textbf{Parameter} & \textbf{Distribution} & \textbf{Nominal} \\
 \midrule
 $k_1$ (ripening rate) & $\mathcal{U}(0.012, 0.028)$ & 0.02\,day$^{-1}\,^\circ$C$^{-1}$ \\
-$T_{amb}$ (ambient temp.) & $\mathcal{N}(27.0, 3.0)$ & 27.0$^\circ$C \\
+$T_{amb}$ (ambient temp.) & $\mathcal{N}(27.0, 2.0)$ & 27.0$^\circ$C \\
 Initial $X_0$ & $\mathcal{U}(0.85, 0.95)$ & 0.90 \\
 Target harvest day & $\mathcal{U}(3.0, 7.0)$ & 5.0 days \\
 Temp. sensor noise & $\mathcal{N}(0, 0.5)$ & --- \\
@@ -85,7 +92,7 @@ Humidity sensor noise & $\mathcal{N}(0, 2.0)$ & --- \\
 \end{tabular}
 \end{table}
 
-The ambient temperature mean of 27.0$^\circ$C reflects the annual mean for Iligan City, Philippines, with a standard deviation of 3.0$^\circ$C to capture the diurnal cycle (nighttime $\sim$22$^\circ$C, daytime $\sim$31$^\circ$C) in an indoor environment without air conditioning. The ripening rate $k_1 = 0.02$\,day$^{-1}\,^\circ$C$^{-1}$ was calibrated from empirical data (Section~\ref{subsec:ripening_kinetics}), with domain randomization spanning $\pm 40\%$ to cover inter-cultivar variability between slow-ripening commercial hybrids (Diamante Max, $k_1 \approx 0.015$) and faster native varieties (Kamatis Tagalog, $k_1 \approx 0.028$).
+The ambient temperature mean of 27.0$^\circ$C reflects the annual mean for Iligan City, Philippines. A diurnal cycle with amplitude $\pm 4^\circ$C (peak at 14:00, trough at 02:00) explicitly models the indoor day/night swing (nighttime $\sim$23$^\circ$C, daytime $\sim$31$^\circ$C). The standard deviation of 2.0$^\circ$C captures the remaining stochastic variation (weather, cloud cover) above and below the diurnal envelope, without air conditioning. The ripening rate $k_1 = 0.02$\,day$^{-1}\,^\circ$C$^{-1}$ was calibrated from empirical data (Section~\ref{subsec:ripening_kinetics}), with domain randomization spanning $\pm 40\%$ to cover inter-cultivar variability between slow-ripening commercial hybrids (Diamante Max, $k_1 \approx 0.015$) and faster native varieties (Kamatis Tagalog, $k_1 \approx 0.028$).
 
 \subsection{Reinforcement Learning Formulation}
 The problem is formulated as an episodic Markov Decision Process (MDP), with the agent interacting with the digital twin at hourly intervals. We define the state space, action space, and reward function as follows.
@@ -207,6 +214,13 @@ Upon auto-harvest (when $X \leq X_{\text{target}}$), the agent receives a one-ti
     \label{eq:b_harvest}
 \end{equation}
 where $B = 10.0$ is the maximum bonus and $t_{\text{max}} = 7$ days. Harvesting exactly on time yields the full bonus; deviation reduces it proportionally.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.48\textwidth]{reward_decomposition.png}
+\caption{Reward function decomposition for a representative scenario ($X_0=0.9$, $k_1=0.02$, target=5\,d, $T=27^\circ$C). The quality component remains near zero while the fruit is unripe ($X > 0.15$), then rises sharply at the harvest threshold. The timing penalty forms a symmetric trough centred on the target day. The total reward (bold) is maximised by harvesting just before the target, balancing both components.}
+\label{fig:reward_decomp}
+\end{figure}
 
 \subsubsection{Termination Conditions}
 Episodes terminate under three conditions:

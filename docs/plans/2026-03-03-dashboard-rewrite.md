@@ -1,0 +1,602 @@
+# Dashboard Rewrite Implementation Plan
+
+> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+
+**Goal:** Replace the broken multi-file frontend with a single `index.html` (inline CSS + JS) that connects to the existing `server.py` WebSocket backend and shows: ROYG tomato colour, Q-values, obs vector, live chart, controls.
+
+**Architecture:** Delete all frontend files except `server.py`. Write one `index.html` (~350 lines). `server.py` is unchanged — it already works (confirmed via direct WebSocket test). Serve with `python -m http.server 8080` from `digital_twin_viz/`.
+
+**Tech Stack:** Vanilla HTML/CSS/JS, Canvas 2D API for chart, WebSocket API, no external dependencies.
+
+---
+
+### Task 1: Delete old frontend files
+
+**Files:**
+- Delete: `digital_twin_viz/app.js`
+- Delete: `digital_twin_viz/simulator.js`
+- Delete: `digital_twin_viz/renderer.js`
+- Delete: `digital_twin_viz/style.css`
+- Delete: `digital_twin_viz/index.html`
+
+**Step 1: Delete them**
+
+```bash
+rm digital_twin_viz/app.js digital_twin_viz/simulator.js digital_twin_viz/renderer.js \
+   digital_twin_viz/style.css digital_twin_viz/index.html
+```
+
+**Step 2: Verify only server.py remains**
+
+```bash
+ls digital_twin_viz/
+```
+Expected output: `server.py`
+
+**Step 3: Commit**
+
+```bash
+git add -A digital_twin_viz/
+git commit -m "chore(viz): delete broken frontend files"
+```
+
+---
+
+### Task 2: Create new index.html
+
+**Files:**
+- Create: `digital_twin_viz/index.html`
+
+**Step 1: Write the file**
+
+Create `digital_twin_viz/index.html` with this exact content:
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edge-RL Digital Twin</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Georgia, 'Times New Roman', serif;
+      background: #f0f0f0;
+      color: #1a1a1a;
+      min-height: 100vh;
+    }
+    .app {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 12px 20px;
+    }
+    .header h1 { font-size: 18px; }
+    .header .subtitle { font-size: 12px; color: #888; margin-top: 2px; font-style: italic; }
+    .header-right { display: flex; gap: 10px; align-items: center; }
+    .badge {
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: bold;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 0.05em;
+    }
+    .badge-conn { background: #fee; color: #c00; border: 1px solid #fcc; }
+    .badge-conn.connected { background: #efe; color: #060; border: 1px solid #cfc; }
+    .badge-day { background: #eef; color: #339; border: 1px solid #ccf; }
+
+    /* Grid */
+    .grid {
+      display: grid;
+      grid-template-columns: 220px 1fr 1fr;
+      gap: 12px;
+      align-items: start;
+    }
+
+    /* Panel */
+    .panel {
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .panel h2 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #888;
+      margin-bottom: 14px;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 6px;
+    }
+
+    /* Environment */
+    .tomato-circle {
+      width: 80px; height: 80px;
+      border-radius: 50%;
+      border: 3px solid #ddd;
+      margin: 0 auto 12px;
+      transition: background 0.4s ease;
+      background: #3a7d44;
+    }
+    .x-value {
+      text-align: center;
+      font-size: 28px;
+      font-weight: bold;
+      font-family: 'Courier New', monospace;
+      margin-bottom: 4px;
+    }
+    .stage-label {
+      text-align: center;
+      font-size: 13px;
+      color: #666;
+      font-style: italic;
+      margin-bottom: 14px;
+    }
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      padding: 5px 0;
+      border-bottom: 1px solid #f5f5f5;
+    }
+    .stat-row .lbl { color: #888; }
+    .stat-row .val { font-family: 'Courier New', monospace; font-weight: bold; }
+
+    /* Agent */
+    .obs-vector {
+      font-family: 'Courier New', monospace;
+      font-size: 9px;
+      color: #888;
+      word-break: break-all;
+      line-height: 1.5;
+      margin-bottom: 14px;
+    }
+    .q-section-label { font-size: 11px; color: #888; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .qrow { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+    .qrow .qname { font-size: 12px; width: 80px; color: #444; }
+    .qbar-bg { flex: 1; height: 14px; background: #f0f0f0; border-radius: 3px; overflow: hidden; }
+    .qbar-fill { height: 100%; border-radius: 3px; background: #ccc; transition: width 0.15s ease, background 0.15s ease; width: 0%; }
+    .qbar-fill.best { background: #2a7a3b; }
+    .qnum { font-family: 'Courier New', monospace; font-size: 11px; width: 58px; text-align: right; color: #444; }
+
+    .chosen-action {
+      margin-top: 12px;
+      padding: 8px 12px;
+      background: #f8f8f8;
+      border-left: 3px solid #2a7a3b;
+      border-radius: 0 4px 4px 0;
+    }
+    .chosen-action .ca-label { font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: 0.05em; }
+    .chosen-action .ca-val { font-size: 14px; font-weight: bold; margin-top: 2px; }
+
+    .reward-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+    .reward-box { background: #f8f8f8; border-radius: 4px; padding: 8px; text-align: center; }
+    .reward-box .rl { font-size: 10px; color: #aaa; text-transform: uppercase; }
+    .reward-box .rv { font-size: 16px; font-family: 'Courier New', monospace; font-weight: bold; }
+    .rv.pos { color: #2a7a3b; }
+    .rv.neg { color: #c84b38; }
+
+    /* Chart */
+    #chart { width: 100%; height: 200px; display: block; border: 1px solid #eee; border-radius: 4px; }
+    .chart-legend { display: flex; gap: 14px; margin-top: 8px; font-size: 11px; color: #666; flex-wrap: wrap; }
+    .legend-item { display: flex; align-items: center; gap: 5px; }
+    .legend-swatch { width: 18px; height: 3px; border-radius: 2px; }
+
+    /* Controls */
+    .controls {
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .btn-group { display: flex; gap: 8px; }
+    .btn {
+      padding: 7px 16px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      background: white;
+      font-family: Georgia, serif;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: #f5f5f5; }
+    .btn:disabled { opacity: 0.4; cursor: default; }
+    .btn-primary { background: #2a7a3b; color: white; border-color: #2a7a3b; }
+    .btn-primary:hover:not(:disabled) { background: #22603a; }
+    .speed-control { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #444; }
+    input[type=range] { width: 100px; accent-color: #2a7a3b; }
+    .mode-group { display: flex; gap: 6px; margin-left: auto; }
+    .mode-btn { padding: 5px 12px; border-radius: 4px; border: 1px solid #ccc; background: white; font-size: 12px; cursor: pointer; font-family: Georgia, serif; }
+    .mode-btn.active { background: #2a7a3b; color: white; border-color: #2a7a3b; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <header class="header">
+    <div>
+      <h1>Edge-RL Digital Twin</h1>
+      <div class="subtitle">DQN Policy · Real Simulator · Live Ripening Control</div>
+    </div>
+    <div class="header-right">
+      <span class="badge badge-conn" id="connBadge">DISCONNECTED</span>
+      <span class="badge badge-day" id="dayCounter">Day — / —</span>
+    </div>
+  </header>
+
+  <div class="grid">
+
+    <div class="panel">
+      <h2>🍅 Environment</h2>
+      <div class="tomato-circle" id="tomatoColor"></div>
+      <div class="x-value" id="xValue">—</div>
+      <div class="stage-label" id="stageLabel">—</div>
+      <div class="stat-row"><span class="lbl">🌡 Temperature</span><span class="val" id="envTemp">—</span></div>
+      <div class="stat-row"><span class="lbl">💧 Humidity</span><span class="val" id="envHum">—</span></div>
+      <div class="stat-row"><span class="lbl">📅 Day / Target</span><span class="val" id="envDay">—</span></div>
+      <div class="stat-row"><span class="lbl">⏱ Step</span><span class="val" id="envStep">—</span></div>
+    </div>
+
+    <div class="panel">
+      <h2>🧠 RL Agent (DQN)</h2>
+      <div class="obs-vector" id="obsVec">obs: [—]</div>
+      <div class="q-section-label">Q-values</div>
+      <div class="qrow">
+        <span class="qname">⏸ Maintain</span>
+        <div class="qbar-bg"><div class="qbar-fill" id="qbar0"></div></div>
+        <span class="qnum" id="qval0">—</span>
+      </div>
+      <div class="qrow">
+        <span class="qname">🔥 Heat</span>
+        <div class="qbar-bg"><div class="qbar-fill" id="qbar1"></div></div>
+        <span class="qnum" id="qval1">—</span>
+      </div>
+      <div class="qrow">
+        <span class="qname">❄️ Cool</span>
+        <div class="qbar-bg"><div class="qbar-fill" id="qbar2"></div></div>
+        <span class="qnum" id="qval2">—</span>
+      </div>
+      <div class="chosen-action">
+        <div class="ca-label">Chosen action</div>
+        <div class="ca-val" id="chosenAction">—</div>
+      </div>
+      <div class="reward-grid">
+        <div class="reward-box"><div class="rl">Step reward</div><div class="rv" id="stepReward">—</div></div>
+        <div class="reward-box"><div class="rl">Total reward</div><div class="rv pos" id="totalReward">0.00</div></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>📈 Trajectory</h2>
+      <canvas id="chart"></canvas>
+      <div class="chart-legend">
+        <div class="legend-item"><div class="legend-swatch" style="background:#2a7a3b"></div>Chromatic X</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#c05a2a"></div>Temp (norm.)</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:#3a6abf"></div>Humidity (norm.)</div>
+        <div class="legend-item">● actions (grey/red/blue)</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="controls">
+    <div class="btn-group">
+      <button class="btn btn-primary" id="btnStart">▶ Start</button>
+      <button class="btn" id="btnPause" disabled>⏸ Pause</button>
+      <button class="btn" id="btnStep">⏭ Step</button>
+      <button class="btn" id="btnReset">↺ Reset</button>
+    </div>
+    <div class="speed-control">
+      Speed:
+      <input type="range" id="speedSlider" min="1" max="20" value="3">
+      <span id="speedLabel">3×</span>
+    </div>
+    <div class="mode-group">
+      <button class="mode-btn active" id="modeRl">DQN Agent</button>
+      <button class="mode-btn" id="modeFixed">Fixed</button>
+      <button class="mode-btn" id="modeManual">Manual</button>
+    </div>
+  </div>
+
+</div>
+<script>
+// ── Constants ──────────────────────────────────────────
+const STAGES = ['Green','Breaker','Turning','Pink','Light Red','Red'];
+const ROYG_X   = [1.0, 0.85, 0.65, 0.40, 0.15, 0.0];
+const ROYG_RGB = [[58,125,68],[125,165,58],[201,168,37],[232,140,58],[217,79,58],[192,48,42]];
+const ACTION_LABELS = { maintain:'⏸ Maintain', heat:'🔥 Heat +1°C', cool:'❄️ Cool −1°C' };
+const ACTION_COLORS = ['#999','#c84b38','#3a6abf'];
+
+// ── State ──────────────────────────────────────────────
+let ws, reconnectTimer;
+let hist = { hours:[], ripeness:[], temperature:[], humidity:[], actions:[] };
+
+// ── WebSocket ──────────────────────────────────────────
+function connect() {
+  ws = new WebSocket('ws://127.0.0.1:8765');
+  ws.onopen  = () => { setConn(true);  clearTimeout(reconnectTimer); };
+  ws.onclose = () => { setConn(false); reconnectTimer = setTimeout(connect, 2000); };
+  ws.onerror = () => ws.close();
+  ws.onmessage = e => update(JSON.parse(e.data));
+}
+function send(msg) {
+  if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
+}
+function setConn(ok) {
+  const b = document.getElementById('connBadge');
+  b.textContent = ok ? 'CONNECTED' : 'DISCONNECTED';
+  b.className = 'badge badge-conn' + (ok ? ' connected' : '');
+}
+
+// ── ROYG colour ────────────────────────────────────────
+function roygColor(x) {
+  x = Math.max(0, Math.min(1, x));
+  for (let i = 0; i < ROYG_X.length - 1; i++) {
+    if (x >= ROYG_X[i + 1]) {
+      const t = (x - ROYG_X[i+1]) / (ROYG_X[i] - ROYG_X[i+1]);
+      const a = ROYG_RGB[i+1], b = ROYG_RGB[i];
+      return `rgb(${Math.round(a[0]+t*(b[0]-a[0]))},${Math.round(a[1]+t*(b[1]-a[1]))},${Math.round(a[2]+t*(b[2]-a[2]))})`;
+    }
+  }
+  return `rgb(${ROYG_RGB.at(-1).join(',')})`;
+}
+
+// ── UI update ──────────────────────────────────────────
+function update(s) {
+  // Environment
+  document.getElementById('tomatoColor').style.background = roygColor(s.ripeness);
+  document.getElementById('xValue').textContent  = s.ripeness.toFixed(3);
+  document.getElementById('stageLabel').textContent = STAGES[Math.min(s.ripenessStage ?? 0, 5)];
+  document.getElementById('envTemp').textContent  = s.temperature.toFixed(1) + ' °C';
+  document.getElementById('envHum').textContent   = s.humidity.toFixed(0) + ' %';
+  document.getElementById('envDay').textContent   = s.days.toFixed(1) + ' / ' + s.targetDay + 'd';
+  document.getElementById('envStep').textContent  = s.step;
+  document.getElementById('dayCounter').textContent = `Day ${s.days.toFixed(1)} / ${s.targetDay}`;
+
+  // Q-values
+  if (s.qValues && s.qValues.length === 3) {
+    const qv = s.qValues;
+    const maxQ = Math.max(...qv), minQ = Math.min(...qv), range = maxQ - minQ || 1;
+    for (let i = 0; i < 3; i++) {
+      const bar = document.getElementById(`qbar${i}`);
+      bar.style.width = ((qv[i] - minQ) / range * 100).toFixed(1) + '%';
+      bar.className = 'qbar-fill' + (qv[i] === maxQ ? ' best' : '');
+      document.getElementById(`qval${i}`).textContent = qv[i].toFixed(3);
+    }
+  }
+
+  // Obs vector
+  if (s.observation)
+    document.getElementById('obsVec').textContent =
+      'obs: [' + s.observation.map(v => v.toFixed(2)).join(', ') + ']';
+
+  // Action
+  if (s.action)
+    document.getElementById('chosenAction').textContent = ACTION_LABELS[s.action] ?? s.action;
+
+  // Rewards
+  const setReward = (id, val) => {
+    const el = document.getElementById(id);
+    el.textContent = val.toFixed(val < 100 ? 3 : 1);
+    el.className = 'rv ' + (val >= 0 ? 'pos' : 'neg');
+  };
+  if (s.reward !== undefined)      setReward('stepReward',  s.reward);
+  if (s.totalReward !== undefined) setReward('totalReward', s.totalReward);
+
+  // History → chart
+  if (s.history && s.history.hours.length) { hist = s.history; drawChart(); }
+
+  // Episode done
+  if (s.event === 'done') {
+    document.getElementById('btnStart').disabled = false;
+    document.getElementById('btnPause').disabled = true;
+    if (s.harvestQuality !== undefined)
+      document.getElementById('chosenAction').textContent =
+        `Harvested · Quality: ${(s.harvestQuality * 100).toFixed(1)}%`;
+  }
+}
+
+// ── Controls ───────────────────────────────────────────
+document.getElementById('btnStart').onclick = () => {
+  send({ cmd: 'start' });
+  document.getElementById('btnStart').disabled = true;
+  document.getElementById('btnPause').disabled = false;
+};
+document.getElementById('btnPause').onclick = () => {
+  send({ cmd: 'pause' });
+  document.getElementById('btnStart').disabled = false;
+  document.getElementById('btnPause').disabled = true;
+};
+document.getElementById('btnStep').onclick  = () => send({ cmd: 'step' });
+document.getElementById('btnReset').onclick = () => {
+  send({ cmd: 'reset' });
+  hist = { hours:[], ripeness:[], temperature:[], humidity:[], actions:[] };
+  document.getElementById('btnStart').disabled  = false;
+  document.getElementById('btnPause').disabled  = true;
+  document.getElementById('chosenAction').textContent = '—';
+  document.getElementById('stepReward').textContent   = '—';
+  document.getElementById('totalReward').textContent  = '0.00';
+  drawChart();
+};
+document.getElementById('speedSlider').oninput = function() {
+  document.getElementById('speedLabel').textContent = this.value + '×';
+  send({ cmd: 'set_speed', speed: +this.value });
+};
+['Rl','Fixed','Manual'].forEach(name => {
+  document.getElementById('mode' + name).onclick = () => {
+    send({ cmd: 'set_mode', mode: name.toLowerCase() });
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('mode' + name).classList.add('active');
+  };
+});
+
+// ── Chart ──────────────────────────────────────────────
+const canvas = document.getElementById('chart');
+const ctx    = canvas.getContext('2d');
+
+function resizeChart() {
+  canvas.width  = canvas.clientWidth  || 400;
+  canvas.height = canvas.clientHeight || 200;
+  drawChart();
+}
+
+function drawChart() {
+  const W = canvas.width, H = canvas.height;
+  const p = { l:36, r:10, t:10, b:20 };
+  const cW = W - p.l - p.r, cH = H - p.t - p.b;
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#fafafa'; ctx.fillRect(0, 0, W, H);
+
+  const hrs = hist.hours;
+  if (!hrs || hrs.length < 2) {
+    ctx.fillStyle = '#ccc'; ctx.font = '12px Georgia'; ctx.textAlign = 'center';
+    ctx.fillText('No data yet — press ▶ Start', W / 2, H / 2);
+    return;
+  }
+
+  const maxH = hrs.at(-1) || 1;
+
+  // Y-axis grid + labels
+  ctx.strokeStyle = '#eee'; ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = p.t + (i / 4) * cH;
+    ctx.beginPath(); ctx.moveTo(p.l, y); ctx.lineTo(p.l + cW, y); ctx.stroke();
+    ctx.fillStyle = '#aaa'; ctx.font = '9px Georgia'; ctx.textAlign = 'right';
+    ctx.fillText((1 - i/4).toFixed(2), p.l - 4, y + 3);
+  }
+
+  // Harvest threshold dashed line at X=0.15
+  const threshY = p.t + (1 - 0.15) * cH;
+  ctx.strokeStyle = '#c84b38'; ctx.setLineDash([4,4]); ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(p.l, threshY); ctx.lineTo(p.l + cW, threshY); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Data lines
+  line(hist.ripeness,    '#2a7a3b', 2,   v => v);
+  line(hist.temperature, '#c05a2a', 1.5, v => (v - 12.5) / 27.5);
+  if (hist.humidity && hist.humidity.length)
+    line(hist.humidity,  '#3a6abf', 1.5, v => (v - 40) / 59);
+
+  // Action dots strip
+  hrs.forEach((h, i) => {
+    const x = p.l + (h / maxH) * cW;
+    ctx.beginPath(); ctx.arc(x, p.t + cH + 10, 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = ACTION_COLORS[hist.actions[i]] ?? '#999'; ctx.fill();
+  });
+
+  function line(data, color, lw, norm) {
+    if (!data || data.length < 2) return;
+    ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.beginPath();
+    data.forEach((v, i) => {
+      const x = p.l + (hrs[i] / maxH) * cW;
+      const y = p.t + (1 - Math.max(0, Math.min(1, norm(v)))) * cH;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+  }
+}
+
+window.addEventListener('resize', resizeChart);
+resizeChart();
+connect();
+</script>
+</body>
+</html>
+```
+
+**Step 2: Verify it exists**
+
+```bash
+ls -lh digital_twin_viz/index.html
+```
+Expected: file exists, ~13KB
+
+**Step 3: Commit**
+
+```bash
+git add digital_twin_viz/index.html
+git commit -m "feat(viz): rewrite dashboard as single-file academic HTML"
+```
+
+---
+
+### Task 3: End-to-end verification
+
+**Step 1: Kill anything on 8765/8080**
+
+```bash
+lsof -ti:8765 | xargs kill -9 2>/dev/null
+lsof -ti:8080 | xargs kill -9 2>/dev/null
+```
+
+**Step 2: Start the WebSocket backend**
+
+```bash
+source .venv/bin/activate && python digital_twin_viz/server.py &
+sleep 3 && lsof -ti:8765 && echo "WS server up"
+```
+Expected: prints a PID and "WS server up"
+
+**Step 3: Start the HTTP file server**
+
+```bash
+cd digital_twin_viz && python -m http.server 8080 &
+cd ..
+sleep 1 && lsof -ti:8080 && echo "HTTP server up"
+```
+Expected: prints a PID and "HTTP server up"
+
+**Step 4: Smoke-test the WebSocket directly**
+
+```bash
+source .venv/bin/activate && python -c "
+import asyncio, json, websockets
+async def t():
+    async with websockets.connect('ws://127.0.0.1:8765') as ws:
+        s = json.loads(await ws.recv())
+        assert s['event'] == 'reset', f'bad event: {s}'
+        assert 'ripeness' in s, 'missing ripeness'
+        assert 'qValues' in s or True  # qValues only on step, not reset
+        print('WS OK — ripeness:', s['ripeness'], 'event:', s['event'])
+asyncio.run(t())
+"
+```
+Expected: `WS OK — ripeness: 0.xxx event: reset`
+
+**Step 5: Open in browser**
+
+Open `http://localhost:8080` — should see:
+- Header: "Edge-RL Digital Twin" with green CONNECTED badge
+- Left panel: green circle (ROYG), X value, stage, temp/humidity/day
+- Centre: obs vector, 3 Q-bars, chosen action
+- Right: chart canvas with "No data yet" message
+- Controls: Start/Pause/Step/Reset buttons, speed slider, mode toggles
+
+Click **▶ Start** — the tomato should change colour, Q-bars should animate, chart should draw lines.
+
+**Step 6: Commit verification note** (no code change needed — just confirming it works)
+
+```bash
+git log --oneline -3
+```
